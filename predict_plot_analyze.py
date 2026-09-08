@@ -30,7 +30,7 @@ AAC_directories = [
                     # "1.00000000000",
                   ]
 
-final_directories         = [i + "/" + j for i in GGI_directories for j in AAC_directories]
+final_directories         = [i + "/" + j    for i in GGI_directories for j in AAC_directories]
 files_for_prediction      = [i + "/str.out" for i in final_directories]
 files_for_GGI_CALCULATION = [i + "/CONTCAR" for i in final_directories]
 
@@ -38,7 +38,7 @@ ce = ClusterExpansion.read("cluster_expansion.ce")
 
 actual_energy_list = [get_struct_and_energy(i)[1] for i in final_directories]
 predicted_energy_list = [ce.predict(parse_ATAT_strout(str_file)) for str_file in files_for_prediction]
-GGI_list = [calculate_GGI(contcar_file) for contcar_file in files_for_GGI_CALCULATION]
+GGI_list = [GGI_AAC(contcar_file)[0] for contcar_file in files_for_GGI_CALCULATION]
 
 plt.xlabel("GGI")
 plt.ylabel("E")
@@ -75,8 +75,8 @@ x = np.linspace(0, 1, 20)
 fit = [omega * i * (1 - i) for i in x]
 plt.plot(x, fit, label = f"predicted data fit. Ω = {omega}", color = "red")
 
-fit = [omega * i * (1 - i) for i in x]
 omega = curve_fit(fit_function, GGI_list, actual_delta_E)[0]
+fit = [omega * i * (1 - i) for i in x]
 x = np.linspace(0, 1, 20)
 plt.plot(x, fit, label = f"actual data fit. Ω = {omega}", color = "blue")
 

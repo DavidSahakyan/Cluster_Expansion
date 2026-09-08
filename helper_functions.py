@@ -114,11 +114,14 @@ def get_struct_and_energy(directory_name):
 
     return struct, energy
 
-def calculate_GGI(file_name):
+def GGI_AAC(file_name):
     elements = []
     number_of_elements = []
     In_number = 0
     Ga_number = 0
+    Ag_number = 0
+    Cu_number = 0
+    
 
     with open(file_name, "r") as f:
         for i in range(5):
@@ -135,11 +138,18 @@ def calculate_GGI(file_name):
             In_number = number_of_elements[index]
         elif elements[index] == "Ga":
             Ga_number = number_of_elements[index]
+        elif elements[index] == "Ag":
+            Ag_number = number_of_elements[index]
+        elif elements[index] == "Cu":
+            Cu_number = number_of_elements[index]
 
     if ((not Ga_number) or (not In_number)):
         print(f"NOTE THAT THERE IS NO Ga EITHER NO In IN ALLOY IN {file_name}\n")
 
-    return (Ga_number/(Ga_number + In_number))
+    if ((not Ag_number) or (not Cu_number)):
+            print(f"NOTE THAT THERE IS NO Ag EITHER NO Cu IN ALLOY IN {file_name}\n")
+    
+    return [(Ga_number/(Ga_number + In_number)), (Ag_number/(Ag_number + Cu_number))]
 
 def fit_linear(x1, y1, x2, y2):
     k = (y2 - y1) / (x2 - x1)
