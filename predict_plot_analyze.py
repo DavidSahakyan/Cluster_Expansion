@@ -54,7 +54,6 @@ k, b = fit_linear(GGI_list[0],  actual_energy_list[0],
                   GGI_list[-1], actual_energy_list[-1])
 actual_line = [k * i + b for i in GGI_list]
 
-
 plt.plot(GGI_directories, actual_line, color = "blue")
 plt.show()
 
