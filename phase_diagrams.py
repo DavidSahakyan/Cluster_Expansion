@@ -3,6 +3,7 @@ import matplotlib.pyplot as plt
 from helper_functions import *
 from icet import ClusterExpansion
 from scipy.interpolate import griddata
+from scipy.optimize import curve_fit
 
 ce = ClusterExpansion.read("cluster_expansion.ce")
 
@@ -34,29 +35,47 @@ AAC_directories = [
 
 GGI_list = []
 AAC_list = []
-energy_delta = []
-energy = []
-prev_index = 0
+
+predicted_energy = []
+actual_energy = []
+
+predicted_energy_delta = []
+actual_energy_delta = []
 
 for i in AAC_directories:
     for j in GGI_directories:
         AAC_list.append(float(i))
         GGI_list.append(float(j))
-        energy.append(ce.predict(parse_ATAT_strout(j + "/" + i + "/str.out")))
+        predicted_energy.append(ce.predict(parse_ATAT_strout(j + "/" + i + "/str.out")))
+        actual_energy.append(get_struct_and_energy(j + "/" + i)[1])
 
-    k, b = fit_linear(GGI_list[prev_index],  energy[prev_index], 
-                      GGI_list[-1],          energy[-1])
+A, B, C, D = curve_fit(surface_fit_function, (GGI_list, AAC_list), predicted_energy)[0]
+for i in range(len(GGI_list)):
+    predicted_energy_delta.append((predicted_energy[i] - 
+                        surface_fit_function((GGI_list[i], AAC_list[i]), A, B, C, D)) * 4000 / 216) 
+print(f"Predicted coefficients: {A}, {B}, {C}, {D}")
 
-    predicted_line = [k * i + b for i in GGI_list]
+A, B, C, D = curve_fit(surface_fit_function, (GGI_list, AAC_list), actual_energy)[0]
+for i in range(len(GGI_list)):
+    actual_energy_delta.append((actual_energy[i] - 
+                        surface_fit_function((GGI_list[i], AAC_list[i]), A, B, C, D)) * 4000 / 216)
+print(f"Actual coefficients: {A}, {B}, {C}, {D}")
 
-    for i in range(prev_index, len(energy)):
-        energy_delta.append((energy[i] - predicted_line[i]) * 4000 / 216)
+fig = plt.figure()
+ax = fig.add_subplot(111, projection = "3d")
 
-    prev_index = len(energy)
+ax.scatter(GGI_list, AAC_list, predicted_energy_delta, color = "red")
+ax.scatter(GGI_list, AAC_list, actual_energy_delta, color = "blue")
+
+ax.set_xlabel("GGI")
+ax.set_ylabel("AAC")
+ax.set_zlabel("Energy")
+
+plt.show()
 
 X = np.array(GGI_list).reshape(10, 10)
 Y = np.array(AAC_list).reshape(10, 10)
-Z = np.array(energy_delta).reshape(10, 10)
+Z = np.array(actual_energy_delta).reshape(10, 10)
 
 plt.contourf(X, Y, Z, levels = 50, cmap = "RdBu")
 
