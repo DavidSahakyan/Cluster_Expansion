@@ -158,5 +158,10 @@ def fit_linear(x1, y1, x2, y2):
 
     return k,b
 
-def fit_function(x, omega):
+def linear_fit_function(x, omega):
     return omega * x * (1 - x)
+
+def surface_fit_function(GGI_AAC_data, A, B, C, D):
+    x = GGI_AAC_data[0]
+    y = GGI_AAC_data[1]
+    return (A * x * y) + (B * x) + (C * y) + D
