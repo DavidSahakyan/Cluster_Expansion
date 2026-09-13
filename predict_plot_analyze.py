@@ -69,16 +69,17 @@ predicted_delta_E = [4000 * i / 216  for i in predicted_delta_E]
 plt.scatter(GGI_list, predicted_delta_E, color = "red", s = 50, label = "predicted")
 plt.scatter(GGI_list, actual_delta_E,    color = "blue", label = "actual")
 
-omega = curve_fit(fit_function, GGI_list, predicted_delta_E)[0]
+omega = curve_fit(linear_fit_function, GGI_list, predicted_delta_E)[0]
 x = np.linspace(0, 1, 20)
 fit = [omega * i * (1 - i) for i in x]
 plt.plot(x, fit, label = f"predicted data fit. Ω = {omega}", color = "red")
+print(f"predicted omega: {omega[0]}")
 
-omega = curve_fit(fit_function, GGI_list, actual_delta_E)[0]
+omega = curve_fit(linear_fit_function, GGI_list, actual_delta_E)[0]
 fit = [omega * i * (1 - i) for i in x]
 x = np.linspace(0, 1, 20)
 plt.plot(x, fit, label = f"actual data fit. Ω = {omega}", color = "blue")
-
+print(f"actual omega: {omega[0]}")
 
 plt.legend()
 plt.show()
