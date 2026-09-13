@@ -46,36 +46,40 @@ for i in AAC_directories:
     for j in GGI_directories:
         AAC_list.append(float(i))
         GGI_list.append(float(j))
-        predicted_energy.append(ce.predict(parse_ATAT_strout(j + "/" + i + "/str.out")))
-        actual_energy.append(get_struct_and_energy(j + "/" + i)[1])
+        predicted_energy.append(ce.predict(parse_ATAT_strout(j + "/" + i + "/str.out")) * 4000 / 216)
+        actual_energy.append(get_struct_and_energy(j + "/" + i)[1] * 4000 / 216)
 
-A, B, C, D = curve_fit(surface_fit_function, (GGI_list, AAC_list), predicted_energy)[0]
-for i in range(len(GGI_list)):
-    predicted_energy_delta.append((predicted_energy[i] - 
-                        surface_fit_function((GGI_list[i], AAC_list[i]), A, B, C, D)) * 4000 / 216) 
-print(f"Predicted coefficients: {A}, {B}, {C}, {D}")
 
-A, B, C, D = curve_fit(surface_fit_function, (GGI_list, AAC_list), actual_energy)[0]
+prediction = [43.8, -146.8, 60, -1781.9] 
+A, B, C, D = curve_fit(surface_fit_function, (GGI_list, AAC_list), predicted_energy, prediction)[0]
 for i in range(len(GGI_list)):
-    actual_energy_delta.append((actual_energy[i] - 
-                        surface_fit_function((GGI_list[i], AAC_list[i]), A, B, C, D)) * 4000 / 216)
-print(f"Actual coefficients: {A}, {B}, {C}, {D}")
+    predicted_energy_delta.append(predicted_energy[i] - 
+                        surface_fit_function((GGI_list[i], AAC_list[i]), A, B, C, D)) 
+print(f"Predicted coefficients: A: {A}, B: {B}, C: {C}, D: {D}")
+
+A, B, C, D = curve_fit(surface_fit_function, (GGI_list, AAC_list), actual_energy, prediction)[0]
+for i in range(len(GGI_list)):
+    actual_energy_delta.append(actual_energy[i] - 
+                        surface_fit_function((GGI_list[i], AAC_list[i]), A, B, C, D))
+print(f"Actual coefficients: A: {A}, B: {B}, C: {C}, D: {D}")
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection = "3d")
-
-ax.scatter(GGI_list, AAC_list, predicted_energy_delta, color = "red")
-ax.scatter(GGI_list, AAC_list, actual_energy_delta, color = "blue")
 
 ax.set_xlabel("GGI")
 ax.set_ylabel("AAC")
 ax.set_zlabel("Energy")
 
-plt.show()
+
+helper = np.array(predicted_energy).reshape(10, 10)
 
 X = np.array(GGI_list).reshape(10, 10)
 Y = np.array(AAC_list).reshape(10, 10)
 Z = np.array(actual_energy_delta).reshape(10, 10)
+ax.plot_surface(X, Y, Z, color = "blue")
+Z = np.array(predicted_energy_delta).reshape(10, 10)
+ax.plot_surface(X, Y, Z, color = "red")
+plt.show()
 
 plt.contourf(X, Y, Z, levels = 50, cmap = "RdBu")
 
