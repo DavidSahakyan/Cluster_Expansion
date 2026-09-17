@@ -36,32 +36,43 @@ AAC_directories = [
 GGI_list = []
 AAC_list = []
 
-predicted_energy = []
-actual_energy = []
+GGI_list_for_fit = [] 
+AAC_list_for_fit = [] 
 
+predicted_energy_for_fit = []
+predicted_energy = []
 predicted_energy_delta = []
-actual_energy_delta = []
 
 for i in AAC_directories:
     for j in GGI_directories:
+
         AAC_list.append(float(i))
         GGI_list.append(float(j))
         predicted_energy.append(ce.predict(parse_ATAT_strout(j + "/" + i + "/str.out")) * 4000 / 216)
-        actual_energy.append(get_struct_and_energy(j + "/" + i)[1] * 4000 / 216)
 
-
+        if i == "0.00000000000" and j == "0.00000000000":
+            AAC_list_for_fit.append(float(i))
+            GGI_list_for_fit.append(float(j))
+            predicted_energy_for_fit.append(ce.predict(parse_ATAT_strout(j + "/" + i + "/str.out")) * 4000 / 216)                                    
+        elif i == "1.00000000000" and j == "0.00000000000":
+            AAC_list_for_fit.append(float(i))
+            GGI_list_for_fit.append(float(j))
+            predicted_energy_for_fit.append(ce.predict(parse_ATAT_strout(j + "/" + i + "/str.out")) * 4000 / 216)                                    
+        elif i == "0.00000000000" and j == "1.00000000000":
+            AAC_list_for_fit.append(float(i))
+            GGI_list_for_fit.append(float(j))
+            predicted_energy_for_fit.append(ce.predict(parse_ATAT_strout(j + "/" + i + "/str.out")) * 4000 / 216)                                    
+        elif i == "1.00000000000" and j == "1.00000000000":
+            AAC_list_for_fit.append(float(i))
+            GGI_list_for_fit.append(float(j))
+            predicted_energy_for_fit.append(ce.predict(parse_ATAT_strout(j + "/" + i + "/str.out")) * 4000 / 216)                                    
+                
 prediction = [43.8, -146.8, 60, -1781.9] 
-A, B, C, D = curve_fit(surface_fit_function, (GGI_list, AAC_list), predicted_energy, prediction)[0]
+A, B, C, D = curve_fit(surface_fit_function, (GGI_list_for_fit, AAC_list_for_fit), predicted_energy_for_fit, prediction)[0]
 for i in range(len(GGI_list)):
     predicted_energy_delta.append(predicted_energy[i] - 
-                        surface_fit_function((GGI_list[i], AAC_list[i]), A, B, C, D)) 
+                           surface_fit_function((GGI_list[i], AAC_list[i]), A, B, C, D)) 
 print(f"Predicted coefficients: A: {A}, B: {B}, C: {C}, D: {D}")
-
-A, B, C, D = curve_fit(surface_fit_function, (GGI_list, AAC_list), actual_energy, prediction)[0]
-for i in range(len(GGI_list)):
-    actual_energy_delta.append(actual_energy[i] - 
-                        surface_fit_function((GGI_list[i], AAC_list[i]), A, B, C, D))
-print(f"Actual coefficients: A: {A}, B: {B}, C: {C}, D: {D}")
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection = "3d")
@@ -70,15 +81,10 @@ ax.set_xlabel("GGI")
 ax.set_ylabel("AAC")
 ax.set_zlabel("Energy")
 
-
-helper = np.array(predicted_energy).reshape(10, 10)
-
 X = np.array(GGI_list).reshape(10, 10)
 Y = np.array(AAC_list).reshape(10, 10)
-Z = np.array(actual_energy_delta).reshape(10, 10)
-ax.plot_surface(X, Y, Z, color = "blue")
 Z = np.array(predicted_energy_delta).reshape(10, 10)
-ax.plot_surface(X, Y, Z, color = "red")
+ax.plot_surface(X, Y, Z)
 plt.show()
 
 plt.contourf(X, Y, Z, levels = 50, cmap = "RdBu")
