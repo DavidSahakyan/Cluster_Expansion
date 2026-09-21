@@ -5,7 +5,7 @@ from icet import ClusterExpansion
 from scipy.interpolate import griddata
 from scipy.optimize import curve_fit
 
-ce = ClusterExpansion.read("cluster_expansion.ce")
+ce = ClusterExpansion.read("generated_data_files/cluster_expansion.ce")
 
 GGI_directories = [
                     "0.00000000000",
@@ -48,24 +48,24 @@ for i in AAC_directories:
 
         AAC_list.append(float(i))
         GGI_list.append(float(j))
-        predicted_energy.append(ce.predict(parse_ATAT_strout(j + "/" + i + "/str.out")) * 4000 / 216)
+        predicted_energy.append(ce.predict(parse_ATAT_strout("initial_data_files/" + j + "/" + i + "/str.out")) * 4000 / 216)
 
         if i == "0.00000000000" and j == "0.00000000000":
             AAC_list_for_fit.append(float(i))
             GGI_list_for_fit.append(float(j))
-            predicted_energy_for_fit.append(ce.predict(parse_ATAT_strout(j + "/" + i + "/str.out")) * 4000 / 216)                                    
+            predicted_energy_for_fit.append(ce.predict(parse_ATAT_strout("initial_data_files/" + j + "/" + i + "/str.out")) * 4000 / 216)                                    
         elif i == "1.00000000000" and j == "0.00000000000":
             AAC_list_for_fit.append(float(i))
             GGI_list_for_fit.append(float(j))
-            predicted_energy_for_fit.append(ce.predict(parse_ATAT_strout(j + "/" + i + "/str.out")) * 4000 / 216)                                    
+            predicted_energy_for_fit.append(ce.predict(parse_ATAT_strout("initial_data_files/" + j + "/" + i + "/str.out")) * 4000 / 216)                                    
         elif i == "0.00000000000" and j == "1.00000000000":
             AAC_list_for_fit.append(float(i))
             GGI_list_for_fit.append(float(j))
-            predicted_energy_for_fit.append(ce.predict(parse_ATAT_strout(j + "/" + i + "/str.out")) * 4000 / 216)                                    
+            predicted_energy_for_fit.append(ce.predict(parse_ATAT_strout("initial_data_files/" + j + "/" + i + "/str.out")) * 4000 / 216)                                    
         elif i == "1.00000000000" and j == "1.00000000000":
             AAC_list_for_fit.append(float(i))
             GGI_list_for_fit.append(float(j))
-            predicted_energy_for_fit.append(ce.predict(parse_ATAT_strout(j + "/" + i + "/str.out")) * 4000 / 216)                                    
+            predicted_energy_for_fit.append(ce.predict(parse_ATAT_strout("initial_data_files/" + j + "/" + i + "/str.out")) * 4000 / 216)                                    
                 
 prediction = [43.8, -146.8, 60, -1781.9] 
 A, B, C, D = curve_fit(surface_fit_function, (GGI_list_for_fit, AAC_list_for_fit), predicted_energy_for_fit, prediction)[0]

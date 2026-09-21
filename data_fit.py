@@ -4,6 +4,7 @@ from ase import Atoms
 from icet import ClusterSpace, StructureContainer
 from trainstation import Optimizer
 from icet import ClusterExpansion
+import os
 
 #============================================================
 #USER MODIFICATION SECTION START
@@ -35,8 +36,8 @@ AAC_directories = [
                     "1.00000000000",
                   ]
 
-output_file_name = "cluster_expansion.ce"
-ATAT_format_lattice_path = "lat.in"
+ATAT_format_lattice_path = "initial_data_files/lat.in"
+output_file_name = "generated_data_files/cluster_expansion.ce"
 
 cutoffs = [6, 4.5] #NOT SURE HOW TO HANDLE THIS YET
 
@@ -80,7 +81,7 @@ print(cluster_space)
 #============================================================
 training_data = []
 
-final_directories = [i + "/" + j for i in GGI_directories for j in AAC_directories]
+final_directories = ["initial_data_files/" + i + "/" + j for i in GGI_directories for j in AAC_directories]
 
 for directory in final_directories:
 
@@ -149,6 +150,7 @@ cluster_expansion = ClusterExpansion(
 print("\n================ CLUSTER EXPANSION ================\n")
 print(cluster_expansion)
 
+os.makedirs("generated_data_files", exist_ok=True)
 cluster_expansion.write(output_file_name)
 
 #============================================================

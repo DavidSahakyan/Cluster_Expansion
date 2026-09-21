@@ -1,5 +1,6 @@
 import numpy as np
 from ase import Atoms
+import re
 
 def parse_ATAT_strout(filename):
     """
@@ -69,7 +70,7 @@ def parse_ATAT_lat(filename):
                 unit_vector_coords = [float(i) for i in line.split(" ")]
                 cell.append(unit_vector_coords)
             except:
-                print("SOME ERROR IN PARSING UNIT VECTOR COORDINATES INTO NUMBERS. CHECK lat.in FILE\n")
+                print("SOME ERROR IN PARSING UNIT VECTOR COORDINATES INTO NUMBERS. CHECK initial_data_files/lat.in FILE\n")
 
             if not line:
                 print("SMTH IS WRONG WITH LATTICE FILE OR PARSING FUNCTION\n")
@@ -91,7 +92,7 @@ def parse_ATAT_lat(filename):
                 atoms_coords = [float(i) for i in line.split(" ")[0:3]]
                 coords.append(atoms_coords)
             except:
-                print("SOME ERROR IN PARSING ATOM COORDINATES INTO NUMBERS. CHECK lat.in FILE\n")
+                print("SOME ERROR IN PARSING ATOM COORDINATES INTO NUMBERS. CHECK initial_data_files/lat.in FILE\n")
 
             coordinates_number += 1
             elements.append(line.split(" ")[3].split(","))
@@ -101,7 +102,7 @@ def parse_ATAT_lat(filename):
 def get_struct_and_energy(directory_name):
 
     try:
-        with open(directory_name+ "/energy") as f:
+        with open(directory_name + "/energy") as f:
             energy = float(f.read().strip())
     except Exception as e:
         print(e)
@@ -165,3 +166,49 @@ def surface_fit_function(GGI_AAC_data, A, B, C, D):
     x = GGI_AAC_data[0]
     y = GGI_AAC_data[1]
     return (A * x * y) + (B * x) + (C * y) + D
+
+def read_target_data(filename, target_t, target_k_B):
+    with open(filename, "r") as f:
+
+        line = f.readline()
+        in_desired_range = False
+        GGI_list    = []
+        energy_list = []
+        
+        while line:
+            if re.search(r"START OF THE DATA SET.*", line) and \
+                           (not in_desired_range):
+
+                start_symbol = re.search(r'T = ', line).end()
+                end_symbol   = re.search(r' K', line).start()
+
+                detected_temperature = line[start_symbol:end_symbol].strip()
+
+                start_symbol = re.search(r'k_B = ', line).end()
+                end_symbol   = re.search(r' eV',    line).start()
+
+                detected_k_B = line[start_symbol:end_symbol].strip()
+
+                if (float(detected_k_B)         == target_k_B) and \
+                   (float(detected_temperature) == target_t):
+
+                    in_desired_range = True
+                    f.readline()
+
+            elif in_desired_range and \
+                 not re.search(r".*=.*", line):
+
+                GGI_list   .append(float(line.split()[0]))
+                energy_list.append(float(line.split()[1]))
+
+            elif in_desired_range and \
+                 re.search(r".*=.*", line):
+
+                return [GGI_list, energy_list]
+
+            line = f.readline()
+
+    if in_desired_range:
+        return [GGI_list, energy_list]
+
+    raise LookupError("TARGET TEMPERATURE OR BOLTZMANN CONSTANT ARE NOT FOUND. YOU SHOULD RUN MC SIMULATION FOR THAT VALUES FIRST\n")
