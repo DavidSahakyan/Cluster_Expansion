@@ -144,12 +144,6 @@ def GGI_AAC(file_name):
         elif elements[index] == "Cu":
             Cu_number = number_of_elements[index]
 
-    if ((not Ga_number) or (not In_number)):
-        print(f"NOTE THAT THERE IS NO Ga EITHER NO In IN ALLOY IN {file_name}\n")
-
-    if ((not Ag_number) or (not Cu_number)):
-            print(f"NOTE THAT THERE IS NO Ag EITHER NO Cu IN ALLOY IN {file_name}\n")
-    
     return [(Ga_number/(Ga_number + In_number)), (Ag_number/(Ag_number + Cu_number))]
 
 def fit_linear(x1, y1, x2, y2):
