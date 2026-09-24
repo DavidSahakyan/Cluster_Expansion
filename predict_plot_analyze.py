@@ -38,8 +38,20 @@ files_for_GGI_CALCULATION = [i + "/CONTCAR" for i in final_directories]
 
 ce = ClusterExpansion.read(clusted_expansion_file_path)
 
-actual_energy_list = [get_struct_and_energy(i)[1] for i in final_directories]
-predicted_energy_list = [ce.predict(parse_ATAT_strout(str_file)) for str_file in files_for_prediction]
+actual_energy_list = []
+number_of_atoms    = 0
+
+for i in final_directories:  
+  number_of_atoms = get_struct_and_energy(i)[2]
+  actual_energy_list.append(get_struct_and_energy(i)[1])
+
+predicted_energy_list = []
+
+for str_file in files_for_prediction:
+    atoms, number_of_atoms = parse_ATAT_strout(str_file)
+    predicted_energy_list.append(ce.predict(atoms) * number_of_atoms) # THIS IS DONE TO BE CONSISTENT WITH THE DATA IN THE PAPER, 
+                                                                      # THAT IS E/Formula
+
 GGI_list = [GGI_AAC(contcar_file)[0] for contcar_file in files_for_GGI_CALCULATION]
 
 plt.xlabel("GGI")
@@ -56,6 +68,9 @@ k, b = fit_linear(GGI_list[0],  actual_energy_list[0],
                   GGI_list[-1], actual_energy_list[-1])
 actual_line = [k * i + b for i in GGI_list]
 
+print(k)
+print(b)
+
 plt.plot(GGI_list, actual_line, color = "blue")
 plt.legend()
 plt.show()
@@ -66,8 +81,8 @@ for i in range(len(GGI_list)):
     predicted_delta_E.append(predicted_energy_list[i] - predicted_line[i])
     actual_delta_E   .append(   actual_energy_list[i] -    actual_line[i])
 
-actual_delta_E = [4000 * i / 216  for i in actual_delta_E]
-predicted_delta_E = [4000 * i / 216  for i in predicted_delta_E]
+actual_delta_E    = [4000 * i / number_of_atoms for i in actual_delta_E]
+predicted_delta_E = [4000 * i / number_of_atoms for i in predicted_delta_E]
 
 plt.scatter(GGI_list, predicted_delta_E, color = "red", s = 50, label = "predicted")
 plt.scatter(GGI_list, actual_delta_E,    color = "blue", label = "actual")

@@ -48,24 +48,27 @@ for i in AAC_directories:
 
         AAC_list.append(float(i))
         GGI_list.append(float(j))
-        predicted_energy.append(ce.predict(parse_ATAT_strout("initial_data_files/" + j + "/" + i + "/str.out")) * 4000 / 216)
+
+        atoms, number_of_atoms = parse_ATAT_strout("initial_data_files/" + j + "/" + i + "/str.out")
+
+        predicted_energy.append(ce.predict(atoms) * number_of_atoms * 4000 / number_of_atoms) #THIS IS DONE TO BE CONSISTENT WITH DIMENTIONALITY
 
         if i == "0.00000000000" and j == "0.00000000000":
             AAC_list_for_fit.append(float(i))
             GGI_list_for_fit.append(float(j))
-            predicted_energy_for_fit.append(ce.predict(parse_ATAT_strout("initial_data_files/" + j + "/" + i + "/str.out")) * 4000 / 216)                                    
+            predicted_energy_for_fit.append(ce.predict(atoms) * number_of_atoms * 4000 / number_of_atoms)                                    
         elif i == "1.00000000000" and j == "0.00000000000":
             AAC_list_for_fit.append(float(i))
             GGI_list_for_fit.append(float(j))
-            predicted_energy_for_fit.append(ce.predict(parse_ATAT_strout("initial_data_files/" + j + "/" + i + "/str.out")) * 4000 / 216)                                    
+            predicted_energy_for_fit.append(ce.predict(atoms) * number_of_atoms * 4000 / number_of_atoms)
         elif i == "0.00000000000" and j == "1.00000000000":
             AAC_list_for_fit.append(float(i))
             GGI_list_for_fit.append(float(j))
-            predicted_energy_for_fit.append(ce.predict(parse_ATAT_strout("initial_data_files/" + j + "/" + i + "/str.out")) * 4000 / 216)                                    
+            predicted_energy_for_fit.append(ce.predict(atoms) * number_of_atoms * 4000 / number_of_atoms)
         elif i == "1.00000000000" and j == "1.00000000000":
             AAC_list_for_fit.append(float(i))
             GGI_list_for_fit.append(float(j))
-            predicted_energy_for_fit.append(ce.predict(parse_ATAT_strout("initial_data_files/" + j + "/" + i + "/str.out")) * 4000 / 216)                                    
+            predicted_energy_for_fit.append(ce.predict(atoms) * number_of_atoms * 4000 / number_of_atoms)
                 
 prediction = [43.8, -146.8, 60, -1781.9] 
 A, B, C, D = curve_fit(surface_fit_function, (GGI_list_for_fit, AAC_list_for_fit), predicted_energy_for_fit, prediction)[0]

@@ -29,18 +29,20 @@ def parse_ATAT_strout(filename):
 
     # Build actual supercell
     supercell = supercell_matrix @ lattice
-
     positions = []
     symbols = []
 
+    number_of_atoms = 0
+
     for line in lines[6:]:
         parts = line.split()
-
+        
         x, y, z = map(float, parts[:3])
         symbol = parts[3]
 
         positions.append([x, y, z])
         symbols.append(symbol)
+        number_of_atoms += 1
 
     # Convert ATAT coordinates to Cartesian coordinates
     positions = np.array(positions) @ lattice
@@ -52,7 +54,7 @@ def parse_ATAT_strout(filename):
         pbc=True
     )
 
-    return atoms
+    return atoms, number_of_atoms
 
 def parse_ATAT_lat(filename):
 
@@ -109,11 +111,11 @@ def get_struct_and_energy(directory_name):
         print(f"SMTH WRONG WITH energy FILE IN {directory_name}\nNOTE: YOUR ENERGY FILE'S NAME SHOULD BE energy\n")
 
     try:
-        struct = parse_ATAT_strout(directory_name + "/str.out")
+        struct, number_of_atoms = parse_ATAT_strout(directory_name + "/str.out")
     except:
         print(f"SMTH WRONG WITH ATAT'S STRUCTURE FILE IN {directory_name}\nNOTE: YOUR ATAT's STRUCTURE FILE'S NAME SHOULD BE str.out")
 
-    return struct, energy
+    return struct, energy, number_of_atoms
 
 def GGI_AAC(file_name):
     elements = []

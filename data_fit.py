@@ -85,11 +85,10 @@ final_directories = ["initial_data_files/" + i + "/" + j for i in GGI_directorie
 
 for directory in final_directories:
 
-    print(directory)
     data = get_struct_and_energy(directory)
 
     training_data.append(
-        (data[0], data[1], directory)
+        (data[0], data[1] / data[2], directory)
     )
 
 print("\n===============================================")
