@@ -119,7 +119,7 @@ for i in cu_sites:
 for i in se_sites:
     start_configuration[i].symbol = "Se"
 
-max_Ga_In_number = 54
+max_Ga_In_number = len(supercell) / 4
 
 for target_t in target_t_list: 
     potential_from_mc = []
