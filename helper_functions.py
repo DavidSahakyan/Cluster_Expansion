@@ -87,7 +87,6 @@ def parse_ATAT_lat(filename):
             line = f.readline().strip()
 
             if not line:
-                print(f"{coordinates_number} coordinates read")
                 break
 
             try:
@@ -163,7 +162,7 @@ def surface_fit_function(GGI_AAC_data, A, B, C, D):
     y = GGI_AAC_data[1]
     return (A * x * y) + (B * x) + (C * y) + D
 
-def read_target_data(filename, target_t, target_k_B):
+def read_target_data(filename, target_t, target_k_B, target_T0):
     with open(filename, "r") as f:
 
         line = f.readline()
@@ -176,7 +175,7 @@ def read_target_data(filename, target_t, target_k_B):
                            (not in_desired_range):
 
                 start_symbol = re.search(r'T = ', line).end()
-                end_symbol   = re.search(r' K', line).start()
+                end_symbol   = re.search(r' K,', line).start()
 
                 detected_temperature = line[start_symbol:end_symbol].strip()
 
@@ -185,8 +184,14 @@ def read_target_data(filename, target_t, target_k_B):
 
                 detected_k_B = line[start_symbol:end_symbol].strip()
 
+                start_symbol = re.search(r'T0 = ', line).end()
+                end_symbol   = re.search(r' K\.',   line).start()
+
+                detected_T0 = line[start_symbol:end_symbol].strip()
+                print(detected_T0)
                 if (float(detected_k_B)         == target_k_B) and \
-                   (float(detected_temperature) == target_t):
+                   (float(detected_temperature) == target_t) and \
+                   (float(detected_T0)          == target_T0 ):
 
                     in_desired_range = True
                     f.readline()
