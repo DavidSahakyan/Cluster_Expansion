@@ -39,9 +39,9 @@ AAC_directories = [
 
 cutoffs = [6, 4.5]
 target_t_list = [
-                    # 323.15, 
-                    # 289.15, 
-                    # 273.15, 
+                    323.15, 
+                    289.15, 
+                    273.15, 
                     248.15
                 ]
 
@@ -85,7 +85,8 @@ temperature_min_list = [
                         # 300.15,
                         # 500.15,
                         # 600.15,
-                        700.15,
+                        # 700.15,
+                        
                        ] 
 temperature_max_plot_limit = 800
 

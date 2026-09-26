@@ -212,4 +212,5 @@ def read_target_data(filename, target_t, target_k_B, target_T0):
     if in_desired_range:
         return [GGI_list, energy_list]
 
+    print(f"T: {target_t}, K_B: {target_k_B}, T0: {target_T0}")
     raise LookupError("TARGET TEMPERATURE OR BOLTZMANN CONSTANT ARE NOT FOUND. YOU SHOULD RUN MC SIMULATION FOR THAT VALUES FIRST\n")
