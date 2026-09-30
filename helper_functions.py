@@ -188,7 +188,7 @@ def read_target_data(filename, target_t, target_k_B, target_T0):
                 end_symbol   = re.search(r' K\.',   line).start()
 
                 detected_T0 = line[start_symbol:end_symbol].strip()
-                print(detected_T0)
+
                 if (float(detected_k_B)         == target_k_B) and \
                    (float(detected_temperature) == target_t) and \
                    (float(detected_T0)          == target_T0 ):

@@ -43,7 +43,7 @@ target_t_list = [
                     248.15
                 ]
 
-temperature_max = 323.15 #100 C     
+temperature_max = 1000 #100 C     
 temperature_min_list = [
                         100.15,
                         # 200.15,
@@ -88,8 +88,8 @@ calc = ClusterExpansionCalculator(supercell, cluster_expansion)
 start_configuration = supercell.copy()
 sublattices = cluster_space.get_sublattices(start_configuration)
 
-n_equilibration_steps    = 400000
-temp_n_integration_steps = 2000000
+n_equilibration_steps    = 40000
+temp_n_integration_steps = 400000
 
 Ga_condition = False
 Cu_condition = False 
@@ -164,16 +164,24 @@ for temperature_min in temperature_min_list:
 
             GGI.append(Ga_number / max_Ga_In_number)
 
-            x0, x1, x2 = interpolate("generated_data_files/thermo_E_over_GGI.txt", temperature_max, k_B, temperature_min)
-            reference_energy = x0 + x1 * GGI[-1] + x2 * (GGI[-1] ** 2)
+            # x0, x1, x2 = interpolate("generated_data_files/thermo_E_over_GGI.txt", temperature_max, k_B, temperature_min)
+            # reference_energy = x0 + x1 * GGI[-1] + x2 * (GGI[-1] ** 2)
+
+            # x_test = np.linspace(0, 1, 1000)
+
+            # F_test = (
+            #     x0
+            #     + x1 * x_test
+            #     + x2 * x_test**2
+            # )
 
             mc = CanonicalEnsemble(
-                    structure = start_configuration,
-                    calculator = calc,
-                    temperature = temperature_max,
-                    boltzmann_constant = k_B,
-                    trajectory_write_interval = None,
-                    ensemble_data_write_interval = 200)
+                structure = start_configuration,
+                calculator = calc,
+                temperature = temperature_max,
+                boltzmann_constant = k_B,
+                trajectory_write_interval = None,
+                ensemble_data_write_interval = 400)
             mc.run(n_equilibration_steps)
 
             mc = CanonicalAnnealing(
@@ -185,7 +193,7 @@ for temperature_min in temperature_min_list:
                     n_steps = temp_n_integration_steps,
                     boltzmann_constant = k_B,
                     trajectory_write_interval = None,
-                    ensemble_data_write_interval = 200)
+                    ensemble_data_write_interval = 400)
             mc.run()
 
             data_container = mc.data_container
@@ -194,16 +202,19 @@ for temperature_min in temperature_min_list:
                                                         cluster_space,
                                                         forward = True,
                                                         temperature_reference = temperature_max,
-                                                        free_energy_reference = reference_energy * len(supercell), 
+                                                        # free_energy_reference = reference_energy * len(supercell), 
                                                         max_temperature = temperature_max_plot_limit,
                                                         boltzmann_constant = k_B)
+
+            print(temperatures_temperature)
+
             mc = CanonicalEnsemble(
                     structure = mc.structure,
                     calculator = calc,
                     temperature = temperature_min,
                     boltzmann_constant = k_B,
                     trajectory_write_interval = None,
-                    ensemble_data_write_interval = 200)
+                    ensemble_data_write_interval = 400)
             
             mc.run(n_equilibration_steps)
 
@@ -216,7 +227,7 @@ for temperature_min in temperature_min_list:
                     n_steps = temp_n_integration_steps,
                     boltzmann_constant = k_B,
                     trajectory_write_interval = None,
-                    ensemble_data_write_interval = 200)
+                    ensemble_data_write_interval = 400)
             
             mc.run()
             data_container = mc.data_container
@@ -226,7 +237,7 @@ for temperature_min in temperature_min_list:
                                                         cluster_space,
                                                         forward = False,
                                                         temperature_reference = temperature_max,
-                                                        free_energy_reference = reference_energy * len(supercell),
+                                                        # free_energy_reference = reference_energy * len(supercell),
                                                         max_temperature = temperature_max_plot_limit,
                                                         boltzmann_constant = k_B)
 
@@ -238,6 +249,13 @@ for temperature_min in temperature_min_list:
                 np.abs(temperatures_temperature - target_t)
             )
 
+            i_target = np.argmin(
+                np.abs(temperatures_temperature - target_t)
+            )
+            
+            F_forward = free_energy_temperature_forward[i_target] / len(supercell)
+            F_backward = free_energy_temperature_backward[i_target] / len(supercell)
+            
             data_from_temperature_per_atom.append(free_energy_integration_average[i] / len(supercell))
 
             string_to_write = str(Ga_number / max_Ga_In_number)  + " " + str(data_from_temperature_per_atom[-1]) + '\n'

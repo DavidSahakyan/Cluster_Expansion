@@ -31,9 +31,9 @@ thermo_target_values_list = [
                         [248.15, 8.617333262e-05, 700.15],
                      ]
 temperature_target_values_list = [
-                                    [248.15, 8.617333262e-05, 100.15],
-                                    [273.15, 8.617333262e-05, 100.15],
-                                    [289.15, 8.617333262e-05, 100.15],
+                                    # [248.15, 8.617333262e-05, 100.15],
+                                    # [273.15, 8.617333262e-05, 100.15],
+                                    # [289.15, 8.617333262e-05, 100.15],
                                     [323.15, 8.617333262e-05, 100.15],
                                  ]
 
@@ -65,6 +65,7 @@ for i in range(int(len(thermo_target_values_list))):
                             thermo_target_values_list[i][1], 
                             thermo_target_values_list[i][2]
                             )
+
     GGI_list = data[0]
     free_energies = data[1]
 
