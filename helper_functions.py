@@ -1,6 +1,8 @@
 import numpy as np
 from ase import Atoms
 import re
+from mchammer.free_energy_tools import _ideal_mixing_entropy, _get_atoms_on_sublattice
+
 
 def parse_ATAT_strout(filename):
     """
@@ -162,60 +164,40 @@ def surface_fit_function(GGI_AAC_data, A, B, C, D):
     y = GGI_AAC_data[1]
     return (A * x * y) + (B * x) + (C * y) + D
 
-def read_target_data(filename, target_t, target_k_B, target_T0):
-    with open(filename, "r") as f:
-
-        line = f.readline()
-        in_desired_range = False
-        GGI_list    = []
-        energy_list = []
-        
-        while line:
-            if re.search(r"START OF THE DATA SET.*", line) and \
-                           (not in_desired_range):
-
-                start_symbol = re.search(r'T = ', line).end()
-                end_symbol   = re.search(r' K,', line).start()
-
-                detected_temperature = line[start_symbol:end_symbol].strip()
-
-                start_symbol = re.search(r'k_B = ', line).end()
-                end_symbol   = re.search(r' eV',    line).start()
-
-                detected_k_B = line[start_symbol:end_symbol].strip()
-
-                start_symbol = re.search(r'T0 = ', line).end()
-                end_symbol   = re.search(r' K\.',   line).start()
-
-                detected_T0 = line[start_symbol:end_symbol].strip()
-                print(detected_T0)
-                if (float(detected_k_B)         == target_k_B) and \
-                   (float(detected_temperature) == target_t) and \
-                   (float(detected_T0)          == target_T0 ):
-
-                    in_desired_range = True
-                    f.readline()
-
-            elif in_desired_range and \
-                 not re.search(r".*=.*", line):
-
-                GGI_list   .append(float(line.split()[0]))
-                energy_list.append(float(line.split()[1]))
-
-            elif in_desired_range and \
-                 re.search(r".*=.*", line):
-
-                return [GGI_list, energy_list]
-
-            line = f.readline()
-
-    if in_desired_range:
-        return [GGI_list, energy_list]
-
-    print(f"T: {target_t}, K_B: {target_k_B}, T0: {target_T0}")
-    raise LookupError("TARGET TEMPERATURE OR BOLTZMANN CONSTANT ARE NOT FOUND. YOU SHOULD RUN MC SIMULATION FOR THAT VALUES FIRST\n")
-
 def interpolate(filename, target_t, target_k_B, target_T0):
     
     x2, x1, x0 = np.polyfit(*read_target_data(filename, target_t, target_k_B, target_T0), 2)
     return [x0, x1, x2]
+
+def get_ref_energy(mc, cluster_space, k_B, T):
+    Enthalpy_of_random = np.average(mc.data_container.get("potential")[1000:])
+    sublattices = cluster_space.get_sublattices(mc.structure)
+    sublattice_probabilities = [True] * len(sublattices)
+    atoms_on_sublattices = _get_atoms_on_sublattice(mc.structure,
+                                                    sublattices)
+    ideal_mixing_entropy = _ideal_mixing_entropy(sublattice_probabilities,
+                                                atoms_on_sublattices,
+                                                k_B)
+    free_energy_reference = Enthalpy_of_random - ideal_mixing_entropy * T
+
+    return free_energy_reference
+
+def read_data(filename, target_T):
+    GGI = []
+    Energy = []
+    with open(filename) as f:
+        line = f.readline()
+
+        while line:
+            data = line.split(" ")
+
+            if float(data[1]) == target_T:
+                GGI.append(float(data[0]))
+                Energy.append(float(data[2]))
+
+            line = f.readline()
+
+    if not len(GGI):
+        err_string = "No data for specified T. T = " + str(target_T) + "\n"
+        KeyError(err_string)
+    return GGI, Energy

@@ -4,67 +4,27 @@ import re
 
 
 #First is the target temperature, second is the Boltzmann constant, third is the integration temperature 
-thermo_target_values_list = [
-                        [323.15, 8.617333262e-05, 100.15], 
-                        [289.15, 8.617333262e-05, 100.15], 
-                        [273.15, 8.617333262e-05, 100.15], 
-                        [248.15, 8.617333262e-05, 100.15],
-                        [323.15, 8.617333262e-05, 200.15], 
-                        [289.15, 8.617333262e-05, 200.15], 
-                        [273.15, 8.617333262e-05, 200.15], 
-                        [248.15, 8.617333262e-05, 200.15],
-                        [323.15, 8.617333262e-05, 300.15], 
-                        [289.15, 8.617333262e-05, 300.15], 
-                        [273.15, 8.617333262e-05, 300.15], 
-                        [248.15, 8.617333262e-05, 300.15],
-                        [323.15, 8.617333262e-05, 500.15], 
-                        [289.15, 8.617333262e-05, 500.15], 
-                        [273.15, 8.617333262e-05, 500.15], 
-                        [248.15, 8.617333262e-05, 500.15],
-                        [323.15, 8.617333262e-05, 600.15], 
-                        [289.15, 8.617333262e-05, 600.15], 
-                        [273.15, 8.617333262e-05, 600.15], 
-                        [248.15, 8.617333262e-05, 600.15],
-                        [323.15, 8.617333262e-05, 700.15], 
-                        [289.15, 8.617333262e-05, 700.15], 
-                        [273.15, 8.617333262e-05, 700.15], 
-                        [248.15, 8.617333262e-05, 700.15],
-                     ]
-temperature_target_values_list = [
-                                    [248.15, 8.617333262e-05, 100.15],
-                                    [273.15, 8.617333262e-05, 100.15],
-                                    [289.15, 8.617333262e-05, 100.15],
-                                    [323.15, 8.617333262e-05, 100.15],
-                                 ]
+target_values_list = [
+                        248.15
+                      ,273.15
+                       ,289.15
+                      ,323.15 
+                    ]
 
 thermo_data_file = "generated_data_files/thermo_E_over_GGI.txt"
 temperature_data_file = "generated_data_files/temperature_E_over_GGI.txt"
 
-fig = plt.figure()
-gs = fig.add_gridspec(3, 2)
-axs = gs.subplots(sharex = True)
-
-plot_numbers = [
-                [0, 0], 
-                [1, 0], 
-                [2, 0], 
-                [0, 1],
-                [1, 1], 
-                [2, 1]
-                ]
-
-for i in range(int(len(thermo_target_values_list))):
+for i in range(len(target_values_list)):
     GGI_list = []
     free_energies = []
     fitted_values = []
     delta_E = []
 
-    data = read_target_data(
-                            thermo_data_file, 
-                            thermo_target_values_list[i][0], 
-                            thermo_target_values_list[i][1], 
-                            thermo_target_values_list[i][2]
-                            )
+    data = read_data(
+                        thermo_data_file, 
+                        target_values_list[i]
+                    )
+    
     GGI_list = data[0]
     free_energies = data[1]
 
@@ -75,28 +35,22 @@ for i in range(int(len(thermo_target_values_list))):
     for j in range(len(GGI_list)):
         delta_E.append((free_energies[j] - fitted_values[j]) * 4000 / 216)
     
-    leg = "T: " + str(thermo_target_values_list[i][0]) + "K, T0: " + str(thermo_target_values_list[i][2]) + "K."
-    plot_num = plot_numbers[int(i / 4)]
-    
-    axs[plot_num[0], plot_num[1]].scatter(GGI_list, delta_E, label = leg)
-    axs[plot_num[0], plot_num[1]].legend(loc = "best")
+    leg = "T: " + str(target_values_list[i]) + "K, T0: " + str(target_values_list[i]) + "K."
+    plt.scatter(GGI_list, delta_E, label = leg)
 
+plt.legend()
 plt.show()
 
-fig, ax = plt.subplots()
-
-for i in range(len(temperature_target_values_list)):
+for i in range(len(target_values_list)):
     GGI_list = []
     free_energies = []
     fitted_values = []
     delta_E = []
 
-    data = read_target_data(
-                            temperature_data_file, 
-                            temperature_target_values_list[i][0], 
-                            temperature_target_values_list[i][1], 
-                            temperature_target_values_list[i][2]
-                            )
+    data = read_data(
+                        temperature_data_file, 
+                        target_values_list[i]
+                    )
     GGI_list = data[0]
     free_energies = data[1]
 
@@ -107,9 +61,9 @@ for i in range(len(temperature_target_values_list)):
     for j in range(len(GGI_list)):
         delta_E.append((free_energies[j] - fitted_values[j]) * 4000 / 216)
     
-    leg = "T: " + str(temperature_target_values_list[i][0]) + "K, T0: " + str(temperature_target_values_list[i][2]) + "K."
+    leg = "T: " + str(target_values_list[i]) + "K, T0: " + str(target_values_list[i]) + "K."
     
-    ax.scatter(GGI_list, delta_E, label = leg, s = i + 1 * 50)
-    ax.legend(loc = "best")
+    plt.scatter(GGI_list, delta_E, label = leg, s = i + 1 * 50)
+    plt.legend(loc = "best")
 
 plt.show()

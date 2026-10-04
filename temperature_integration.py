@@ -40,29 +40,16 @@ target_t_list = [
                     323.15, 
                     289.15, 
                     273.15, 
-                    248.15
+                    248.15,
+                    200.15, 
+                    150.15
                 ]
-
-temperature_max = 323.15 #100 C     
-temperature_min_list = [
-                        100.15,
-                        # 200.15,
-                        # 300.15,
-                        # 500.15,
-                        # 600.15,
-                        # 700.15,
-                       ] 
 
 temperature_max_plot_limit = 800
 
 k_B = 8.617333262e-5
 
-data_from_temperature_per_atom = []
-
-GGI = []
-
 ATAT_format_lattice_path = "initial_data_files/lat.in"
-
 cell, positions, chemical_symbols = parse_ATAT_lat(ATAT_format_lattice_path)
 
 initial_symbols = [i[0] for i in chemical_symbols]
@@ -82,15 +69,19 @@ cluster_space = ClusterSpace(
 
 cluster_expansion = ClusterExpansion.read("generated_data_files/cluster_expansion.ce")
 
-supercell = primitive.repeat((5, 5, 5))
+supercell = primitive.repeat((3, 3, 3))
 calc = ClusterExpansionCalculator(supercell, cluster_expansion)
+
+mc_n_equilibration_steps = 20000
+annealing_n_steps = 800000
+
+T_max = 1500
+T_min = 100
+
+k_B = 8.617333262e-5
 
 start_configuration = supercell.copy()
 sublattices = cluster_space.get_sublattices(start_configuration)
-
-n_equilibration_steps    = 400000
-temp_n_integration_steps = 2000000
-
 Ga_condition = False
 Cu_condition = False 
 Se_condition = False
@@ -126,123 +117,104 @@ for i in se_sites:
 
 max_Ga_In_number = int(len(supercell) / 4)
 
-for temperature_min in temperature_min_list:
-    for target_t in target_t_list:
+for Ga_number in range(0, max_Ga_In_number + 1):
+    for i in ga_sites[0 : Ga_number]:
+        start_configuration[i].symbol = 'Ga'
 
+    for i in ga_sites[Ga_number : len(ga_sites)]:
+        start_configuration[i].symbol = 'In'
 
-        potential_from_mc = []
-        GGI = []
-
-        start_text = "START OF THE DATA SET, T = " + str(target_t) + " K, k_B = " + str(k_B) + " eV, T0 = " + str(temperature_min) + " K.\n"
+    if Ga_number == 0:
         with open("generated_data_files/temperature_E_over_GGI.txt", "a") as f:
-            f.write("==============================================\n")
-            f.write(start_text)
-            f.write("==============================================\n")
+            for target_t in target_t_list:
+                text = "0.0000000000000000 " + str(target_t) + " " + str(cluster_expansion.predict(start_configuration)) + '\n'
+                f.write(text)
+            continue
 
-        for Ga_number in range(0, max_Ga_In_number + 1, 10):
-            for i in ga_sites[0 : Ga_number]:
-                start_configuration[i].symbol = 'Ga'
+    if Ga_number == max_Ga_In_number:
+        with open("generated_data_files/temperature_E_over_GGI.txt", "a") as f:
+            for target_t in target_t_list:
+                text = "1.0000000000000000 " + str(target_t) + " " + str(cluster_expansion.predict(start_configuration)) + '\n'
+                f.write(text)
+            continue
 
-            for i in ga_sites[Ga_number : len(ga_sites)]:
-                start_configuration[i].symbol = 'In'
+    mc = CanonicalEnsemble(
+            structure = start_configuration,
+            calculator = calc,
+            temperature = T_max,
+            boltzmann_constant = k_B,
+            trajectory_write_interval = None,
+            ensemble_data_write_interval = 10)
+    
+    mc.run(mc_n_equilibration_steps)
+    free_ref_energy = get_ref_energy(mc, cluster_space, k_B, T_max)
 
-            if Ga_number == 0:
-                with open("generated_data_files/temperature_E_over_GGI.txt", "a") as f:
-                    str_to_write = "0.0000000000000000 " + str(cluster_expansion.predict(start_configuration)) + '\n'
-                    f.write(str_to_write)
-                    GGI.append(0)
-                    potential_from_mc.append(cluster_expansion.predict(start_configuration))
-                    continue
+    mc = CanonicalAnnealing(
+            structure  = mc.structure,
+            calculator = calc,
+            T_start = T_max,
+            T_stop  = T_min,
+            cooling_function = 'linear',
+            n_steps = annealing_n_steps,
+            boltzmann_constant = k_B,
+            trajectory_write_interval = None,
+            ensemble_data_write_interval = 1)
+    
+    mc.run()
 
-            if Ga_number == max_Ga_In_number:
-                with open("generated_data_files/temperature_E_over_GGI.txt", "a") as f:
-                    str_to_write = "1.0000000000000000 " + str(cluster_expansion.predict(start_configuration)) + '\n'
-                    f.write(str_to_write)
-                    GGI.append(1)
-                    potential_from_mc.append(cluster_expansion.predict(start_configuration))
-                    continue
-
-            GGI.append(Ga_number / max_Ga_In_number)
-
-            x0, x1, x2 = interpolate("generated_data_files/thermo_E_over_GGI.txt", temperature_max, k_B, temperature_min)
-            reference_energy = x0 + x1 * GGI[-1] + x2 * (GGI[-1] ** 2)
-
-            mc = CanonicalEnsemble(
-                    structure = start_configuration,
-                    calculator = calc,
-                    temperature = temperature_max,
-                    boltzmann_constant = k_B,
-                    trajectory_write_interval = None,
-                    ensemble_data_write_interval = 200)
-            mc.run(n_equilibration_steps)
-
-            mc = CanonicalAnnealing(
-                    structure  = mc.structure,
-                    calculator = calc,
-                    T_start = temperature_max,
-                    T_stop  = temperature_min,
-                    cooling_function = 'linear',
-                    n_steps = temp_n_integration_steps,
-                    boltzmann_constant = k_B,
-                    trajectory_write_interval = None,
-                    ensemble_data_write_interval = 200)
-            mc.run()
-
-            data_container = mc.data_container
-            (temperatures_temperature, free_energy_temperature_forward) = \
-                get_free_energy_temperature_integration(data_container,
-                                                        cluster_space,
-                                                        forward = True,
-                                                        temperature_reference = temperature_max,
-                                                        free_energy_reference = reference_energy * len(supercell), 
-                                                        max_temperature = temperature_max_plot_limit,
-                                                        boltzmann_constant = k_B)
-            mc = CanonicalEnsemble(
-                    structure = mc.structure,
-                    calculator = calc,
-                    temperature = temperature_min,
-                    boltzmann_constant = k_B,
-                    trajectory_write_interval = None,
-                    ensemble_data_write_interval = 200)
-            
-            mc.run(n_equilibration_steps)
-
-            mc = CanonicalAnnealing(
-                    structure = mc.structure,
-                    calculator = calc,
-                    T_start = temperature_min,
-                    T_stop = temperature_max,
-                    cooling_function = 'linear',
-                    n_steps = temp_n_integration_steps,
-                    boltzmann_constant = k_B,
-                    trajectory_write_interval = None,
-                    ensemble_data_write_interval = 200)
-            
-            mc.run()
-            data_container = mc.data_container
-
-            (temperatures_temperature, free_energy_temperature_backward) = \
-                get_free_energy_temperature_integration(data_container,
-                                                        cluster_space,
-                                                        forward = False,
-                                                        temperature_reference = temperature_max,
-                                                        free_energy_reference = reference_energy * len(supercell),
-                                                        max_temperature = temperature_max_plot_limit,
-                                                        boltzmann_constant = k_B)
-
-            free_energy_integration_average = 0.5 * (free_energy_temperature_forward +
-                                                     free_energy_temperature_backward)
+    (temperatures_temperature, free_energy_temperature_forward) = \
+        get_free_energy_temperature_integration(mc.data_container,
+                                                cluster_space,
+                                                forward = True,
+                                                temperature_reference = T_max,
+                                                free_energy_reference = free_ref_energy, 
+                                                max_temperature = T_max,
+                                                boltzmann_constant = k_B)
+    mc = CanonicalEnsemble(
+            structure = mc.structure,
+            calculator = calc,
+            temperature = T_min,
+            boltzmann_constant = k_B,
+            trajectory_write_interval = None,
+            ensemble_data_write_interval = 10)
+    
+    mc.run(mc_n_equilibration_steps)
+    free_ref_energy = get_ref_energy(mc, cluster_space, k_B, T_max)
 
 
-            i = np.argmin(
-                np.abs(temperatures_temperature - target_t)
-            )
+    # mc = CanonicalAnnealing(
+    #         structure = mc.structure,
+    #         calculator = calc,
+    #         T_start = T_min,
+    #         T_stop  = T_max,
+    #         cooling_function = 'linear',
+    #         n_steps = annealing_n_steps,
+    #         boltzmann_constant = k_B,
+    #         trajectory_write_interval = None,
+    #         ensemble_data_write_interval = 1)
+    
+    # mc.run()
 
-            data_from_temperature_per_atom.append(free_energy_integration_average[i] / len(supercell))
+    # (temperatures_temperature, free_energy_temperature_backward) = \
+    #     get_free_energy_temperature_integration(mc.data_container,
+    #                                             cluster_space,
+    #                                             forward = False,
+    #                                             temperature_reference = T_max,
+    #                                             free_energy_reference = free_ref_energy,
+    #                                             max_temperature = T_max,
+    #                                             boltzmann_constant = k_B)
 
-            string_to_write = str(Ga_number / max_Ga_In_number)  + " " + str(data_from_temperature_per_atom[-1]) + '\n'
+    # free_energy_temperature_average = 0.5 * (free_energy_temperature_forward +
+    #                                          free_energy_temperature_backward)
 
-            with open("generated_data_files/temperature_E_over_GGI.txt", "a") as f:
-                f.write(string_to_write)
+    for target_t in target_t_list:
+        i = np.argmin(
+            np.abs(temperatures_temperature - target_t)
+        )
 
-            print(f"GGI: {GGI[-1]}, delta_e: {data_from_temperature_per_atom[-1]}\n")
+        text = str(Ga_number / max_Ga_In_number) + " " + str(target_t) + " " + str(free_energy_temperature_forward[i] / len(supercell)) + "\n" 
+        
+        with open("generated_data_files/temperature_E_over_GGI.txt", "a") as f:
+            f.write(text)
+
+        print(f"GGI: {Ga_number / max_Ga_In_number}, delta_e: {free_energy_temperature_forward[i] / len(supercell)}\n")
