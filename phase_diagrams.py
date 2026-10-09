@@ -29,14 +29,15 @@ cluster_space = ClusterSpace(
 
 cluster_expansion = ClusterExpansion.read("generated_data_files/cluster_expansion.ce")
 
-supercell = primitive.repeat((3, 3, 3))
+supercell = primitive.repeat((5, 5, 5))
 calc = ClusterExpansionCalculator(supercell, cluster_expansion)
 
 start_configuration = supercell.copy()
 sublattices = cluster_space.get_sublattices(start_configuration)
-Ga_condition = False
-Cu_condition = False 
-Se_condition = False
+Ga_condition   = False
+Cu_condition   = False 
+Se_condition   = False
+GGI_1_obtained = False
 
 for sublattice in sublattices:
     if 'Ga' in sublattice.chemical_symbols:
@@ -57,19 +58,19 @@ for sublattice in sublattices:
             break
         Se_condition = True
 
-
 temperature_data = {}
-for temperature in [500, 1000]:
+for temperature in [700]:
     # Evolve configuration through the entire composition range
     GGI = []
     energy = []
     chem_pot = []
-    for dmu in np.arange(-1.04, 1.04, 0.05):
+    for dmu in np.arange(-1.04, 1.04, 0.002):
 
         mc = SemiGrandCanonicalEnsemble(
             structure=start_configuration,
             calculator=calc,
             temperature=temperature,
+            ensemble_data_write_interval = 10,
             chemical_potentials = {
                     "In": 0.0,
                     "Ga": dmu, 
@@ -79,25 +80,47 @@ for temperature in [500, 1000]:
 
         mc.run(10000)
         structure = mc.structure
-        ga_number = np.mean(mc.data_container.get("Ga_count")[int(0.2 * len(mc.data_container.get("Ga_count"))):])
-        in_number = np.mean(mc.data_container.get("In_count")[int(0.2 * len(mc.data_container.get("In_count"))):])
-        energy.append(np.mean(mc.data_container.get("potential")[int(0.2 * len(mc.data_container.get("potential"))):]))
+
+
+        data_cutoff = int(0.2 * len(mc.data_container.get("Ga_count")))
+        ga_number =   np.mean(mc.data_container.get("Ga_count") [data_cutoff:])
+        in_number =   np.mean(mc.data_container.get("In_count") [data_cutoff:])
+
+        if(ga_number / (ga_number + in_number) >= 1 and \
+           GGI_1_obtained == False):
+           GGI_1_obtained = True
+        elif(ga_number / (ga_number + in_number) >= 1 and \
+             GGI_1_obtained == True):
+            continue
+
         GGI.   append(ga_number / (ga_number + in_number))
+        energy.append(np.mean(mc.data_container.get("potential")[data_cutoff:]))
         chem_pot.append(dmu)
+        
+        energy[-1] = energy[-1] + chem_pot[-1] * GGI[-1]
 
-        k, b = fit_linear(0, 216 * -3.766559782388363, 1, 216 * -3.899898228845549)
+    k, b = fit_linear(0, max(energy), 1, min(energy))
+    for i in range(len(GGI)):
+        energy[i] -= (k * GGI[i] + b)
 
-        for i in range(len(GGI)):
-            print (energy[i] , k * GGI[i] + b)
-            energy[i] -= k * GGI[i] + b
-
-        temperature_data[temperature] = [GGI, energy, chem_pot]
+    print(min(energy))
+    temperature_data[temperature] = [GGI, energy, chem_pot]
 
 for i in temperature_data.keys():
     lab = "T = " + str(i)
-    plt.plot(temperature_data.get(i)[0], 
-             temperature_data.get(i)[1], 
-             label = lab)
+    plt.scatter(temperature_data.get(i)[0], 
+                temperature_data.get(i)[1], 
+                label = lab)
+
+plt.legend()
+plt.show()
+
+for i in temperature_data.keys():
+    lab = "T = " + str(i)
+    plt.scatter(temperature_data.get(i)[0], 
+                temperature_data.get(i)[2], 
+                label = lab)
+
 
 plt.legend()
 plt.show()
