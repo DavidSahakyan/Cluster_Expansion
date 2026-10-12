@@ -1,8 +1,7 @@
 import numpy as np
 from ase import Atoms
-import re
 from mchammer.free_energy_tools import _ideal_mixing_entropy, _get_atoms_on_sublattice
-
+from scipy.optimize import brentq
 
 def parse_ATAT_strout(filename):
     """
@@ -201,3 +200,78 @@ def read_data(filename, target_T):
         err_string = "No data for specified T. T = " + str(target_T) + "\n"
         KeyError(err_string)
     return GGI, Energy
+
+def find_maxwell_points(dmu_fit_polinom, tol=1e-8):
+
+    derivative = dmu_fit_polinom.deriv()
+
+    # Find extrema inside (0, 1)
+    extrema = derivative.roots()
+    extrema = sorted(
+        r.real for r in extrema
+        if abs(r.imag) < 1e-10 and 0 < r.real < 1
+    )
+
+    if len(extrema) < 2:
+        return []
+
+    # Candidate horizontal-line range
+    values = [dmu_fit_polinom(x) for x in extrema]
+
+    mu_min = min(values)
+    mu_max = max(values)
+
+    integral = dmu_fit_polinom.integ()
+
+    def maxwell_condition(mu):
+
+        shifted = dmu_fit_polinom - mu
+
+        roots = shifted.roots()
+
+        roots = sorted(
+            r.real for r in roots
+            if abs(r.imag) < 1e-10 and 0 < r.real < 1
+        )
+
+        if len(roots) < 3:
+            return np.nan
+
+        x1, x2 = roots[0], roots[-1]
+
+        area = (
+            integral(x2) - integral(x1)
+            - mu * (x2 - x1)
+        )
+
+        return area
+
+    # Search for sign changes of Maxwell condition
+    mu_values = np.linspace(mu_min, mu_max, 1000)
+
+    for mu1, mu2 in zip(mu_values[:-1], mu_values[1:]):
+
+        f1 = maxwell_condition(mu1)
+        f2 = maxwell_condition(mu2)
+
+        if not (np.isfinite(f1) and np.isfinite(f2)):
+            continue
+
+        if f1 * f2 <= 0:
+
+            mu = brentq(maxwell_condition, mu1, mu2, xtol=tol)
+
+            roots = (dmu_fit_polinom - mu).roots()
+
+            roots = sorted(
+                r.real for r in roots
+                if abs(r.imag) < 1e-10 and 0 < r.real < 1
+            )
+
+            if len(roots) >= 3:
+                return [roots[0], roots[-1]]
+
+    return []
+
+def deriv(x1, y1, x2, y2):
+    return (y2 - y1) / (x2 - x1)
