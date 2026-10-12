@@ -168,9 +168,9 @@ for Ga_number in range(0, max_Ga_In_number + 1):
 
     (_, free_energy_integration_forward) = \
             get_free_energy_thermodynamic_integration(data_container, cluster_space,
-                                                        forward = True,
-                                                        max_temperature = temperature_max_plot_limit,
-                                                        boltzmann_constant = k_B )
+                                                      forward = True,
+                                                      max_temperature = temperature_max_plot_limit,
+                                                      boltzmann_constant = k_B )
 
     mc = CanonicalEnsemble(
             structure = mc.structure,
@@ -195,12 +195,12 @@ for Ga_number in range(0, max_Ga_In_number + 1):
 
     (temperatures_integration, free_energy_integration_backward) = \
             get_free_energy_thermodynamic_integration(data_container, cluster_space,
-                                                        forward = False,
-                                                        max_temperature = temperature_max_plot_limit,
-                                                        boltzmann_constant = k_B )
+                                                      forward = False,
+                                                      max_temperature = temperature_max_plot_limit,
+                                                      boltzmann_constant = k_B )
 
     free_energy_integration_average = 0.5 * (free_energy_integration_forward +
-                                                free_energy_integration_backward)
+                                             free_energy_integration_backward)
 
     for target_t in target_t_list:
         i = np.argmin(
