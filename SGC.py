@@ -1,7 +1,6 @@
 from icet import ClusterExpansion
 from mchammer.calculators import ClusterExpansionCalculator
 from mchammer.ensembles import SemiGrandCanonicalEnsemble
-from mchammer.ensembles import CanonicalEnsemble
 import numpy as np
 from icet import ClusterSpace
 from helper_functions import *
@@ -31,13 +30,14 @@ cluster_expansion = ClusterExpansion.read("generated_data_files/cluster_expansio
 
 supercell = primitive.repeat((5, 5, 5))
 calc = ClusterExpansionCalculator(supercell, cluster_expansion)
+filename = "/home/david/Desktop/project/generated_data_files/SGC_data.txt"
 
-start_configuration = supercell.copy()
-sublattices = cluster_space.get_sublattices(start_configuration)
+
+start_configureation = supercell.copy()
+sublattices = cluster_space.get_sublattices(start_configureation)
 Ga_condition   = False
 Cu_condition   = False 
 Se_condition   = False
-GGI_1_obtained = False
 
 for sublattice in sublattices:
     if 'Ga' in sublattice.chemical_symbols:
@@ -58,18 +58,20 @@ for sublattice in sublattices:
             break
         Se_condition = True
 
-temperature_data = {}
-for temperature in [700]:
+for temperature in range(100, 800, 50):
     # Evolve configuration through the entire composition range
     GGI = []
     energy = []
     chem_pot = []
+    GGI_1_obtained = False
+    structure = start_configureation
+
     for dmu in np.arange(-1.04, 1.04, 0.002):
 
         mc = SemiGrandCanonicalEnsemble(
-            structure=start_configuration,
-            calculator=calc,
-            temperature=temperature,
+            structure = structure,
+            calculator = calc,
+            temperature = temperature,
             ensemble_data_write_interval = 10,
             chemical_potentials = {
                     "In": 0.0,
@@ -81,8 +83,7 @@ for temperature in [700]:
         mc.run(10000)
         structure = mc.structure
 
-
-        data_cutoff = int(0.2 * len(mc.data_container.get("Ga_count")))
+        data_cutoff = int(0.7 * len(mc.data_container.get("Ga_count")))
         ga_number =   np.mean(mc.data_container.get("Ga_count") [data_cutoff:])
         in_number =   np.mean(mc.data_container.get("In_count") [data_cutoff:])
 
@@ -97,30 +98,11 @@ for temperature in [700]:
         energy.append(np.mean(mc.data_container.get("potential")[data_cutoff:]))
         chem_pot.append(dmu)
         
-        # energy[-1] = energy[-1] + chem_pot[-1] * GGI[-1]
-
     k, b = fit_linear(0, max(energy), 1, min(energy))
     for i in range(len(GGI)):
         energy[i] -= (k * GGI[i] + b)
 
-    print(min(energy))
-    temperature_data[temperature] = [GGI, energy, chem_pot]
-
-for i in temperature_data.keys():
-    lab = "T = " + str(i)
-    plt.scatter(temperature_data.get(i)[0], 
-                temperature_data.get(i)[1], 
-                label = lab)
-
-plt.legend()
-plt.show()
-
-for i in temperature_data.keys():
-    lab = "T = " + str(i)
-    plt.scatter(temperature_data.get(i)[0], 
-                temperature_data.get(i)[2], 
-                label = lab)
-
-
-plt.legend()
-plt.show()
+    with open(filename, "a") as f:
+        for i in range(len(GGI)):
+            string_to_write = str(temperature) + " " + str(GGI[i]) + " " + str(energy[i]) + " " + str(chem_pot[i]) + " \n"
+            f.write(string_to_write)

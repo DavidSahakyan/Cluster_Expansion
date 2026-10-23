@@ -29,103 +29,91 @@ cluster_space = ClusterSpace(
 
 cluster_expansion = ClusterExpansion.read("generated_data_files/cluster_expansion.ce")
 
-supercell = primitive.repeat((5, 5, 5))
+supercell = primitive.repeat((10, 10, 10))
 calc = ClusterExpansionCalculator(supercell, cluster_expansion)
 
 k_B = 8.617333262e-5
 kappa = 200
-phis = np.linspace(-2, 0.5, 40)
+phis = np.linspace(-1.8, 0, 50)
 
 start_configuration = supercell.copy()
 sublattices = cluster_space.get_sublattices(start_configuration)
 file_to_write = "/home/david/Desktop/project/generated_data_files/VCSGC_data.txt"
 figure_save_dir = "/home/david/Desktop/project/generated_data_files/VCSGC_figs/"
 
-temperatures = range(225, 1500, 50)
+temperatures = [200]
 
 for temperature in temperatures:
     GGI_1_obtained = False
     GGI_0_obtained = False
-        
+    structure = supercell.copy()
+
+    std = []
     GGI = []
     E = []
-    psi = []
-    should_be_delta_myu = []
+    E_deriv = []
 
     for phi in phis:
 
         mc = VCSGCEnsemble(
-            structure=start_configuration,
+            structure=structure,
             calculator=calc,
             temperature=temperature,
             ensemble_data_write_interval = 10,
             phis={'Ga': phi, 'Ag': 0},
             kappa=kappa,
-            sublattice_probabilities=[0.0, 1.0, 0.0]
+            sublattice_probabilities=[0, 1.0, 0.0]
             )
 
-        mc.run(1000)
-        start_configuration = mc.structure.copy()
-        print(mc.data_container)
+        mc.run(10000)
+        structure = mc.structure.copy()
 
-        data_cutoff = int(0.2 * len(mc.data_container.get("Ga_count")))
+        data_cutoff = int(0.7 * len(mc.data_container.get("Ga_count")))
         ga_number =   np.mean(mc.data_container.get("Ga_count") [data_cutoff:])
         in_number =   np.mean(mc.data_container.get("In_count") [data_cutoff:])
 
-        print(np.mean(mc.data_container.get("Ag_count") [data_cutoff:]))
-        if (ga_number / (ga_number + in_number)) == 1 and GGI_1_obtained:
+        ggi = ga_number / (ga_number + in_number)
+        print(ggi)
+        print(np.std(mc.data_container.get("free_energy_derivative_Ga") [data_cutoff:]))
+        print(np.std(mc.data_container.get("Ga_count") [data_cutoff:]))
+
+        if (ggi) <= 0.2: #Change to 0 if no data cutoff needed
+            continue
+        
+        elif (ggi) >= 0.95: #Change to 1 if no data cutoff needed
+            continue
+        
+        elif (ggi) == 1 and GGI_1_obtained:
             continue
 
-        elif (ga_number / (ga_number + in_number)) == 0 and GGI_0_obtained:
+        elif (ggi) == 0 and GGI_0_obtained:
             continue
 
-        elif (ga_number / (ga_number + in_number)) == 1 and not GGI_1_obtained:
+        elif (ggi) == 1 and not GGI_1_obtained:
             GGI_1_obtained = True
 
-        elif (ga_number / (ga_number + in_number)) == 0 and not GGI_0_obtained:
+        elif (ggi) == 0 and not GGI_0_obtained:
             GGI_0_obtained = True
-
-        GGI.   append(ga_number / (ga_number + in_number))
-        psi   .append(np.mean(mc.data_container.get("potential")[data_cutoff:]))
-        should_be_delta_myu.append(np.mean(mc.data_container.get("free_energy_derivative_Ga")[data_cutoff:]))
-
-        E.append(psi[-1] - temperature * k_B * kappa * len(supercell) * (GGI[-1] + phi / 2) ** 2)
-    
-    k, b = fit_linear(0, max(psi), 1, min(psi))
-    for i in range(len(GGI)):
-        psi[i] -= (k * GGI[i] + b)
+        
+        GGI.    append(ggi)
+        E  .    append(np.mean(mc.data_container.get("potential")[data_cutoff:]))
+        E_deriv.append(np.mean(mc.data_container.get("free_energy_derivative_Ga")[data_cutoff:]))
 
     k, b = fit_linear(0, max(E), 1, min(E))
     for i in range(len(GGI)):
         E[i] -= (k * GGI[i] + b)
 
-    # with open(file_to_write, "a") as f:
+    with open(file_to_write, "a") as f:
 
-    #     # for i in range(len(GGI)):
-    #     #     str_to_write = str(temperature) + " " + str(GGI[i]) + " " + str(psi[i]) + " " + \
-    #     #                    str(should_be_delta_myu[i]) + " " + str(E[i])   +  " \n"
-    #     #     f.write(str_to_write)
+        for i in range(len(GGI)):
+            str_to_write = str(temperature) + " " + str(GGI[i]) + " " + \
+                            str(E_deriv[i]) + " " + str(E[i]) +  " \n"
+            f.write(str_to_write)
 
-    # fig_name = figure_save_dir + "psi" + str(temperature)
-    # lab = "T = " + str(temperature)
-    # plt.title("PSI") 
-    # plt.scatter(GGI, psi, label = lab)
-    # plt.legend()
-    # plt.savefig(fig_name)
-    # plt.clf()
-
-    # fig_name = figure_save_dir + "dmu" + str(temperature)
-    # lab = "T = " + str(temperature)
-    # plt.title("dmu")
-    # plt.scatter(GGI, should_be_delta_myu, label = lab)
-    # plt.legend()
-    # plt.savefig(fig_name)
-    # plt.clf()
-
-    # fig_name = figure_save_dir + "E" + str(temperature)
-    # lab = "T = " + str(temperature)
-    # plt.title("E")
-    # plt.scatter(GGI, E, label = lab)
-    # plt.legend()
-    # plt.savefig(fig_name)
-    # plt.clf()
+    fig_name = figure_save_dir + "Kappa" + str(kappa)
+    lab = "Kappa = " + str(kappa)
+    plt.title("dmu")
+    plt.scatter(GGI, E_deriv, label = lab)
+    plt.legend()
+    plt.savefig(fig_name)
+    plt.clf()
