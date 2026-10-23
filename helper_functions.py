@@ -201,7 +201,7 @@ def read_data(filename, target_T):
         KeyError(err_string)
     return GGI, Energy
 
-def find_maxwell_points(dmu_fit_polinom, tol=1e-8):
+def find_maxwell_points(dmu_fit_polinom, tol=1e-6):
 
     derivative = dmu_fit_polinom.deriv()
 

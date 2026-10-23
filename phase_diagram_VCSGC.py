@@ -4,50 +4,51 @@ from scipy.optimize import curve_fit
 import numpy as np
 
 temps_GGIs = {}
-target_ts = range(175, 600, 25)
+target_ts = range(250, 800, 25)
+# target_ts = [200, 250]
 file_to_read = "/home/david/Desktop/project/generated_data_files/VCSGC_data.txt"
 
 for target_t in target_ts:
-    GGI = []
-    dmu = []
-    energy = []
+    GGI     = []
+    e_deriv = []
+    energy  = []
     with open(file_to_read) as f:
         line = f.readline()
 
         while line:
             
-            values = line.split(" ")
+            values = line.split()
             if float(values[0]) != target_t: 
                 line = f.readline()
                 continue
             
-            if (float(values[1]) != 0 and  
-                float(values[1]) != 1):
+            if (float(values[1]) >= 0.02 and  
+                float(values[1]) <= 0.98):
                 
-                GGI.   append(float(values[1]))
-                energy.append(float(values[2]))
-                dmu.   append(float(values[3]))
+                GGI.       append(float(values[1].strip()))
+                energy.    append(float(values[3].strip()))
+                e_deriv.   append(float(values[2].strip()))
 
             line = f.readline()
 
-    coeffs = np.polyfit(GGI, dmu, 3)[::-1]
+    coeffs = np.polyfit(GGI, e_deriv, 3)[::-1]
     
     dmu_fit_polinom = np.polynomial.Polynomial(coeffs)
 
     ggi_fit = np.linspace(0, 1, 50)
     dmu_fit = [dmu_fit_polinom(i) for i in ggi_fit]
 
-    lab = "T = " + str(target_t) + " K"
-    plt.scatter(GGI, dmu, label = lab)
-    err = [abs(i) * 0.05 for i in dmu]
-    plt.errorbar(GGI, dmu, yerr = err, linestyle = ' ')
-    plt.plot(ggi_fit, dmu_fit, linestyle = "--", color = "red")
-    plt.legend()
-    plt.show()
+    # lab = "T = " + str(target_t) + " K"
+    # plt.scatter(GGI, dmu, label = lab)
+    # err = [abs(i) * 0.05 for i in dmu]
+    # plt.errorbar(GGI, dmu, yerr = err, linestyle = ' ')
+    # plt.plot(ggi_fit, dmu_fit, linestyle = "--", color = "red")
+    # plt.legend()
+    # plt.show()
 
     temps_GGIs[target_t] = find_maxwell_points(dmu_fit_polinom)     
-    print(temps_GGIs)
 
+print(temps_GGIs)
 ts = []
 GGIs = []
 for temperature in temps_GGIs.keys():
@@ -59,6 +60,7 @@ for temperature in temps_GGIs.keys():
         GGIs.append(GGI)
 
 plt.ylabel("T")
+# plt.ylim(250, 440)
 plt.xlabel("GGI")
 plt.scatter(GGIs, ts)
 plt.show()

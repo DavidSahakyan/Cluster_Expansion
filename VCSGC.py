@@ -112,7 +112,7 @@ for temperature in temperatures:
 
     fig_name = figure_save_dir + "Kappa" + str(kappa)
     lab = "Kappa = " + str(kappa)
-    plt.title("dmu")
+    plt.title("free_energy_der")
     plt.scatter(GGI, E_deriv, label = lab)
     plt.legend()
     plt.savefig(fig_name)
