@@ -2,6 +2,8 @@ import numpy as np
 from ase import Atoms
 from mchammer.free_energy_tools import _ideal_mixing_entropy, _get_atoms_on_sublattice
 from scipy.optimize import brentq
+from scipy.integrate import cumulative_trapezoid
+import matplotlib.pyplot as plt
 
 def parse_ATAT_strout(filename):
     """
@@ -182,31 +184,35 @@ def get_ref_energy(mc, cluster_space, k_B, T):
     return free_energy_reference
 
 def read_data(filename, target_T):
-    GGI = []
-    Energy = []
+    GGIs = []
+    Es   = []
+    E_derivatives = []
     with open(filename) as f:
         line = f.readline()
 
         while line:
-            data = line.split(" ")
-
+            data = line.split()
             if float(data[1]) == target_T:
-                GGI.append(float(data[0]))
-                Energy.append(float(data[2]))
+                GGIs.append(float(data[0]))
+                Es.append(float(data[2]))
+                if len(data) == 4:
+                    E_derivatives.append(float(data[3]))
 
             line = f.readline()
 
-    if not len(GGI):
+    if not len(GGIs):
         err_string = "No data for specified T. T = " + str(target_T) + "\n"
         KeyError(err_string)
-    return GGI, Energy
+    
+    return GGIs, Es, E_derivatives
 
-def find_maxwell_points(dmu_fit_polinom, tol=1e-6):
+def find_maxwell_points(free_energy_polynom, tol=1e-6):
 
-    derivative = dmu_fit_polinom.deriv()
+    first_derivative = free_energy_polynom.deriv()
+    second_derivative = free_energy_polynom.deriv(2)
 
-    # Find extrema inside (0, 1)
-    extrema = derivative.roots()
+    # Find extrema of the first derivative
+    extrema = second_derivative.roots()
     extrema = sorted(
         r.real for r in extrema
         if abs(r.imag) < 1e-10 and 0 < r.real < 1
@@ -215,19 +221,15 @@ def find_maxwell_points(dmu_fit_polinom, tol=1e-6):
     if len(extrema) < 2:
         return []
 
-    # Candidate horizontal-line range
-    values = [dmu_fit_polinom(x) for x in extrema]
+    # Candidate chemical potential range
+    values = [first_derivative(x) for x in extrema]
 
     mu_min = min(values)
     mu_max = max(values)
 
-    integral = dmu_fit_polinom.integ()
-
     def maxwell_condition(mu):
 
-        shifted = dmu_fit_polinom - mu
-
-        roots = shifted.roots()
+        roots = (first_derivative - mu).roots()
 
         roots = sorted(
             r.real for r in roots
@@ -239,14 +241,12 @@ def find_maxwell_points(dmu_fit_polinom, tol=1e-6):
 
         x1, x2 = roots[0], roots[-1]
 
-        area = (
-            integral(x2) - integral(x1)
+        return (
+            free_energy_polynom(x2)
+            - free_energy_polynom(x1)
             - mu * (x2 - x1)
         )
 
-        return area
-
-    # Search for sign changes of Maxwell condition
     mu_values = np.linspace(mu_min, mu_max, 1000)
 
     for mu1, mu2 in zip(mu_values[:-1], mu_values[1:]):
@@ -261,7 +261,7 @@ def find_maxwell_points(dmu_fit_polinom, tol=1e-6):
 
             mu = brentq(maxwell_condition, mu1, mu2, xtol=tol)
 
-            roots = (dmu_fit_polinom - mu).roots()
+            roots = (first_derivative - mu).roots()
 
             roots = sorted(
                 r.real for r in roots
@@ -273,5 +273,389 @@ def find_maxwell_points(dmu_fit_polinom, tol=1e-6):
 
     return []
 
+def find_maxwell_points_2_polynoms(free_energy_left, free_energy_right, left_region=(0, 0.1), right_region=(0.9, 1), tol=1e-6):
+
+    dF_left = free_energy_left.deriv()
+    dF_right = free_energy_right.deriv()
+
+    # Find extrema of free energy in the corresponding regions
+    def get_roots(polynom, region):
+
+        roots = polynom.roots()
+
+        return sorted(
+            r.real for r in roots
+            if abs(r.imag) < 1e-10
+            and region[0] <= r.real <= region[1]
+        )
+
+    # Common chemical potential range
+    x_left = np.linspace(*left_region, 1000)
+    x_right = np.linspace(*right_region, 1000)
+
+    mu_left = dF_left(x_left)
+    mu_right = dF_right(x_right)
+
+    mu_min = max(np.min(mu_left), np.min(mu_right))
+    mu_max = min(np.max(mu_left), np.max(mu_right))
+
+    if mu_min >= mu_max:
+        return []
+
+    def maxwell_condition(mu):
+
+        roots_left = get_roots(dF_left - mu, left_region)
+        roots_right = get_roots(dF_right - mu, right_region)
+
+        if not roots_left or not roots_right:
+            return np.nan
+
+        x1 = roots_left[0]
+        x2 = roots_right[-1]
+
+        # Common tangent condition
+        return (
+            free_energy_right(x2)
+            - free_energy_left(x1)
+            - mu * (x2 - x1)
+        )
+
+    # Search for sign changes
+    mu_values = np.linspace(mu_min, mu_max, 1000)
+
+    for mu1, mu2 in zip(mu_values[:-1], mu_values[1:]):
+
+        f1 = maxwell_condition(mu1)
+        f2 = maxwell_condition(mu2)
+
+        if not (np.isfinite(f1) and np.isfinite(f2)):
+            continue
+
+        if f1 * f2 <= 0:
+
+            mu = brentq(
+                maxwell_condition,
+                mu1,
+                mu2,
+                xtol=tol
+            )
+
+            roots_left = get_roots(dF_left - mu, left_region)
+            roots_right = get_roots(dF_right - mu, right_region)
+
+            if roots_left and roots_right:
+                return [roots_left[0], roots_right[-1]]
+
+    return []
+
 def deriv(x1, y1, x2, y2):
     return (y2 - y1) / (x2 - x1)
+
+# Function below reads the datafile from canonical simulations and analyzes it. 
+# Argument "Ts" is the temperatures list for which the analysis should be done, note that the temperatures should be in datafile.
+# Critical temperature is the temperature below and equal which the free energy data fit will be done separately for region around 1 and 0.
+# "range_around_0", "range_around_1" variables define the range for which the separate fits are done.
+def get_canonical_free_energy_fits_over_T(datafile, Ts, plot_or_no = True, critical_temperature = 150, range_around_0 = 0.1, range_around_1 = 0.9):
+    
+    T_free_energies = {}
+    
+    for i in range(len(Ts)):
+        fitted_values = []
+        free_energies = []
+
+        free_energies_around_0 = []
+        free_energies_around_1 = []
+        
+        data = read_data(
+                            datafile, 
+                            Ts[i]
+                        )
+
+        GGIs = data[0]
+        Es   = data[1]
+
+        GGIs = np.asarray(data[0], dtype = float)
+        Es   = np.asarray(data[1], dtype = float)
+
+        indices = np.argsort(GGIs)
+
+        GGIs = GGIs[indices]
+        Es = Es[indices]
+
+        GGIs_around_0 = []
+        GGIs_around_1 = []
+
+        Es_around_0 = []
+        Es_around_1 = []
+
+        k, b = fit_linear(GGIs[0], Es[0], GGIs[-1], Es[-1])
+        for j in GGIs:
+            fitted_values.append(k * j + b)
+
+        for j in range(len(GGIs)):
+            free_energies.append((Es[j] - fitted_values[j]) * 4000 / 216)
+
+            if GGIs[j] < range_around_0:
+                free_energies_around_0.append((Es[j] - fitted_values[j]) * 4000 / 216)
+            elif GGIs[j] > range_around_1:
+                free_energies_around_1.append((Es[j] - fitted_values[j]) * 4000 / 216)
+
+        leg = "T: "     + str(Ts[i]) + " K"
+
+        if Ts[i] > critical_temperature:
+            coeffs = np.polyfit(GGIs, free_energies, 12)[::-1]
+            free_energy_fit = np.polynomial.Polynomial(coeffs)
+            T_free_energies[Ts[i]] = free_energy_fit
+        
+        else:
+            for ggi_index in range(len(GGIs)):
+                if GGIs[ggi_index] < range_around_0:
+                    GGIs_around_0.append(GGIs[ggi_index])
+                    Es_around_0.append(Es[ggi_index])
+                elif GGIs[ggi_index] > range_around_1:
+                    GGIs_around_1.append(GGIs[ggi_index])
+                    Es_around_1.append(Es[ggi_index])
+
+            coeffs_around_0 = np.polyfit(GGIs_around_0, free_energies_around_0, 4)[::-1]
+            coeffs_around_1 = np.polyfit(GGIs_around_1, free_energies_around_1, 4)[::-1]
+            free_energy_fit_around_0 = np.polynomial.Polynomial(coeffs_around_0)
+            free_energy_fit_around_1 = np.polynomial.Polynomial(coeffs_around_1)
+            T_free_energies[Ts[i]] = [free_energy_fit_around_0, 
+                                      free_energy_fit_around_1]
+
+        if plot_or_no:
+            if Ts[i] > critical_temperature:
+                x = np.linspace(0, 1, 50)
+                y = [free_energy_fit(i) for i in x]
+                plt.plot(x, y, linestyle = "--", label = f"T = {Ts[i]} K, Fit")
+                plt.scatter(GGIs, free_energies, label = f"T = {Ts[i]} K, Data")
+            
+            else:
+                lab = "T = " + str(Ts[i]) + " K, Actual data points"
+                plt.scatter(GGIs, free_energies, label = lab)
+                x0 = np.linspace(0, range_around_0, 100)
+                x1 = np.linspace(range_around_1, 1, 100)
+                plt.plot(x0, free_energy_fit_around_0(x0), "--", label = f"T = {Ts[i]} K, Fit around 0")
+                plt.plot(x1, free_energy_fit_around_1(x1), "--", label = f"T = {Ts[i]} K, Fit around 0")
+
+    if plot_or_no:
+        plt.legend()
+        plt.grid()
+        plt.title("Temperature integration")
+        plt.show()
+
+    return T_free_energies
+
+def get_VCSGC_free_energy_fits_over_T(datafile, Ts, plot_or_no = True, critical_temperature = 150, range_around_0 = 0.1, range_around_1 = 0.9):
+    
+    T_free_energies = {}
+    
+    for i in range(len(Ts)):
+        fitted_values = []
+        free_energies = []
+
+        free_energies_around_0 = []
+        free_energies_around_1 = []
+        
+        data = read_data(
+                            datafile, 
+                            Ts[i]
+                        )
+
+        GGIs = data[0]
+        E_deriv = data[2] 
+
+        GGIs_around_0 = []
+        GGIs_around_1 = []
+
+        Es_around_0 = []
+        Es_around_1 = []
+
+        GGIs = np.array(GGIs)
+        E_deriv = np.array(E_deriv)
+        
+        indices = np.argsort(GGIs)       
+        x = GGIs[indices]
+        dEdx = E_deriv[indices]
+    
+        # Remove repeated GGI values by averaging derivatives
+        x_unique, inverse = np.unique(x, return_inverse=True)
+    
+        dEdx_unique = (
+            np.bincount(inverse, weights=dEdx)
+            / np.bincount(inverse)
+        )
+    
+        # Integrate
+        Es = cumulative_trapezoid(
+            dEdx_unique,
+            x_unique,
+            initial=0
+        )
+
+        if plot_or_no:
+            plt.figure(figsize=(10, 6))
+
+            plt.scatter(x_unique, Es, s=15, label = f"T = {Ts[i]} K")
+            plt.xlabel("GGI")
+            plt.ylabel("Free energy (eV/atom)")
+            plt.grid()
+            plt.legend()
+            plt.show()
+    
+        ind = np.argsort(x_unique)
+        x_unique = x_unique[ind]
+        Es = Es[ind]
+
+        k, b = fit_linear(x_unique[0], Es[0], x_unique[-1], Es[-1])
+        for j in x_unique:
+            fitted_values.append(k * j + b)
+
+        for j in range(len(x_unique)):
+            free_energies.append((Es[j] - fitted_values[j]) * 4000 / 216)
+
+            if x_unique[j] < range_around_0:
+                free_energies_around_0.append((Es[j] - fitted_values[j]) * 4000 / 216)
+            elif x_unique[j] > range_around_1:
+                free_energies_around_1.append((Es[j] - fitted_values[j]) * 4000 / 216)
+
+        if Ts[i] > critical_temperature:
+            coeffs = np.polyfit(x_unique, free_energies, 12)[::-1]
+            free_energy_fit = np.polynomial.Polynomial(coeffs)
+            T_free_energies[Ts[i]] = free_energy_fit
+        
+        else:
+            for ggi_index in range(len(x_unique)):
+                if x_unique[ggi_index] < range_around_0:
+                    GGIs_around_0.append(x_unique[ggi_index])
+                    Es_around_0.append(Es[ggi_index])
+                elif x_unique[ggi_index] > range_around_1:
+                    GGIs_around_1.append(x_unique[ggi_index])
+                    Es_around_1.append(Es[ggi_index])
+
+            coeffs_around_0 = np.polyfit(GGIs_around_0, free_energies_around_0, 4)[::-1]
+            coeffs_around_1 = np.polyfit(GGIs_around_1, free_energies_around_1, 4)[::-1]
+            free_energy_fit_around_0 = np.polynomial.Polynomial(coeffs_around_0)
+            free_energy_fit_around_1 = np.polynomial.Polynomial(coeffs_around_1)
+            T_free_energies[Ts[i]] = [free_energy_fit_around_0, 
+                                      free_energy_fit_around_1]
+
+        if plot_or_no:
+            if Ts[i] > critical_temperature:
+                x = np.linspace(0, 1, 50)
+                y = [free_energy_fit(i) for i in x]
+                plt.plot(x, y, linestyle = "--",     label = f"T = {Ts[i]} K, Fit")
+                plt.scatter(x_unique, free_energies, label = f"T = {Ts[i]} K, Data")
+                
+            else:
+                lab = "T = " + str(Ts[i]) + " K, Actual data points"
+                plt.scatter(x_unique, free_energies, label = lab)
+                x0 = np.linspace(0, range_around_0, 100)
+                x1 = np.linspace(range_around_1, 1, 100)
+                plt.plot(x0, free_energy_fit_around_0(x0), "--", label = f"T = {Ts[i]} K, Fit around 0")
+                plt.plot(x1, free_energy_fit_around_1(x1), "--", label = f"T = {Ts[i]} K, Fit around 1")
+
+            plt.legend()
+            plt.grid()
+            plt.title("VCSGC")
+            plt.show()
+
+    return T_free_energies
+
+def analyze_free_energy_fits_over_T(T_free_energies, plot_or_no = True, critical_temperature = 150):
+    T_GGIs = {}
+    for T in T_free_energies.keys():
+        if T > critical_temperature:
+            T_GGIs[T] = find_maxwell_points(T_free_energies[T])     
+
+            x = np.linspace(0, 1, 40)
+            y = [T_free_energies[T].deriv()(i) for i in x]
+
+        else:
+            free_energy_derivative_around_0 = T_free_energies[T][0].deriv()
+            free_energy_derivative_around_1 = T_free_energies[T][1].deriv()
+
+            T_GGIs[T] = find_maxwell_points_2_polynoms(T_free_energies[T][0], 
+                                                       T_free_energies[T][1])
+
+            x0 = np.linspace(0, 0.1, 100)
+            x1 = np.linspace(0.9, 1, 100)
+
+            y0 = free_energy_derivative_around_0(x0)
+            y1 = free_energy_derivative_around_1(x1)
+
+            x = [*x0, *x1]
+            y = [*y0, *y1]
+
+        if plot_or_no:        
+            leg = "T: " + str(T) + "K"
+            plt.plot(x, y, linestyle = "--", label = leg)
+
+    if plot_or_no:
+        plt.title("Temperature integration")
+        plt.legend()
+        plt.grid()
+        plt.show()
+
+    return T_GGIs
+
+def analyze_free_energy_derivative_fits_over_T(T_free_energy_derivatives, plot_or_no = True, critical_temperature = 150):
+    T_free_energies = {}
+    T_GGIs = {}
+    for T in T_free_energy_derivatives.keys():
+        T_free_energies[T] = T_free_energy_derivatives.integ()
+        if T > critical_temperature:
+            T_GGIs[T] = find_maxwell_points(T_free_energies[T])     
+
+            x = np.linspace(0, 1, 40)
+            y = [T_free_energies[T].deriv()(i) for i in x]
+
+        else:
+            free_energy_derivative_around_0 = T_free_energies[T][0].deriv()
+            free_energy_derivative_around_1 = T_free_energies[T][1].deriv()
+
+            T_GGIs[T] = find_maxwell_points_2_polynoms(T_free_energies[T][0], 
+                                                       T_free_energies[T][1])
+
+            x0 = np.linspace(0, 0.1, 100)
+            x1 = np.linspace(0.9, 1, 100)
+
+            y0 = free_energy_derivative_around_0(x0)
+            y1 = free_energy_derivative_around_1(x1)
+
+            x = [*x0, *x1]
+            y = [*y0, *y1]
+
+        if plot_or_no:        
+            leg = "T: " + str(T) + "K"
+            plt.scatter(x, y, label = leg)
+
+    if plot_or_no:
+        plt.title("Temperature integration")
+        plt.legend()
+        plt.grid()
+        plt.show()
+
+    return T_GGIs
+
+def plot_phase_diagrams(T_GGIs_list, labels = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]):
+    for T_GGIs, lab in zip(T_GGIs_list, labels):
+        phase_diagram_Ts  = []
+        phase_diagram_GGIs = []
+
+        for T in T_GGIs.keys():
+
+            for _ in range(len(T_GGIs[T])):
+                phase_diagram_Ts.append(T)
+
+            for GGI in T_GGIs[T]:
+                phase_diagram_GGIs.append(GGI)
+
+        plt.scatter(phase_diagram_GGIs, phase_diagram_Ts, label = lab)
+
+    plt.title("Phase Diagrams")
+    plt.ylabel("T")
+    plt.grid()
+    plt.xlabel("GGI")
+    plt.legend()    
+    plt.show()
