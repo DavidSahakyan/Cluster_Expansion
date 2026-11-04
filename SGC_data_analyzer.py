@@ -15,12 +15,12 @@ for target_temperature in temperatures_to_read:
         line = f.readline()
 
         while line:
-            words = line.split(" ")
+            data = line.split(" ")
 
-            if float(words[0]) == target_temperature:   
-                GGI.append(float(words[1]))
-                E  .append(float(words[2]))
-                dmu.append(float(words[3]))
+            if float(data[0]) == target_temperature:   
+                GGI.append(float(data[1]))
+                E  .append(float(data[2]))
+                dmu.append(float(data[3]))
 
             line = f.readline()
 

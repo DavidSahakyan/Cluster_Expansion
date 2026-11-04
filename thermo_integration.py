@@ -37,12 +37,6 @@ AAC_directories = [
                   ]
 
 cutoffs = [6, 4.5]
-target_t_list = [
-                    323.15, 
-                    289.15, 
-                    273.15, 
-                    248.15
-                ]
 
 data_from_thermal = []
 data_from_thermal_per_atom = []
@@ -68,17 +62,16 @@ cluster_space = ClusterSpace(
 
 cluster_expansion = ClusterExpansion.read("generated_data_files/cluster_expansion.ce")
 
-supercell = primitive.repeat((3, 3, 3))
+supercell = primitive.repeat((5, 5, 5))
 calc = ClusterExpansionCalculator(supercell, cluster_expansion)
 
-mc_n_integration_steps = 800000
-n_equilibration_steps = 20000
-thermo_n_integration_steps = 80000
+n_equilibration_steps = 100000
+thermo_n_integration_steps = 500000
 
 temperature_max = 373.15 #100 C     
 temperature_min = 100.15 #-100C
 
-temperature_max_plot_limit = 800
+temperature_max_plot_limit = 500
 
 k_B = 8.617333262e-5
 
@@ -121,7 +114,16 @@ max_Ga_In_number = int(len(supercell) / 4)
 
 potential_from_mc = []
 
-for Ga_number in range(0, max_Ga_In_number + 1):
+# temp1 = range(1, 40, 2)
+# temp2 = range(985, 1024, 2)
+# res =  [*temp1, *temp2]
+
+res =  range(50, 175)
+
+Ts = range(150, 500, 25)
+
+for Ga_number in range(0, max_Ga_In_number + 1, 5):
+# for Ga_number in res:
     for i in ga_sites[0 : Ga_number]:
         start_configuration[i].symbol = 'Ga'
 
@@ -129,41 +131,50 @@ for Ga_number in range(0, max_Ga_In_number + 1):
         start_configuration[i].symbol = 'In'
 
     if Ga_number == 0:
-        for target_t in target_t_list:
+        for T in Ts:
             with open("generated_data_files/thermo_E_over_GGI.txt", "a") as f:
-                text = "0.0000000000000000 " + str(target_t) + " " + str(cluster_expansion.predict(start_configuration)) + '\n'
+                text = "0.0000000000000000 " + str(T) + " " + str(cluster_expansion.predict(start_configuration)) + '\n'
                 f.write(text)
                 potential_from_mc.append(cluster_expansion.predict(start_configuration))
         continue
 
     if Ga_number == max_Ga_In_number:
-        for target_t in target_t_list:
+        for T in Ts:
             with open("generated_data_files/thermo_E_over_GGI.txt", "a") as f:
-                text = "1.0000000000000000 " + str(target_t) + " " + str(cluster_expansion.predict(start_configuration)) + '\n'
+                text = "1.0000000000000000 " + str(T) + " " + str(cluster_expansion.predict(start_configuration)) + '\n'
                 f.write(text)
                 potential_from_mc.append(cluster_expansion.predict(start_configuration))
         continue
             
-    mc = CanonicalEnsemble(
-            structure = start_configuration,
-            calculator = calc,
-            temperature = temperature_max,
-            boltzmann_constant = k_B,
-            trajectory_write_interval = None,
-            ensemble_data_write_interval = 200
-            )
+    temperatures = np.linspace(temperature_max, temperature_min, 10)
 
-    mc.run(n_equilibration_steps)
+    configuration = start_configuration.copy()
+
+    for T in temperatures:
+        mc = CanonicalEnsemble(
+            structure=configuration,
+            calculator=calc,
+            temperature=T,
+            boltzmann_constant=k_B,
+            trajectory_write_interval=None,
+            ensemble_data_write_interval=200
+        )
+
+        mc.run(n_equilibration_steps // len(temperatures))
+
+        configuration = mc.structure.copy()
 
     mc = ThermodynamicIntegrationEnsemble(
-        structure = mc.structure, calculator=calc,
-        temperature = temperature_min,
-        forward = True,
-        ensemble_data_write_interval = 1,
-        boltzmann_constant = k_B ,
-        n_steps = thermo_n_integration_steps)
-    
+        structure=configuration,
+        calculator=calc,
+        temperature=temperature_min,
+        forward=True,
+        ensemble_data_write_interval=10,
+        boltzmann_constant=k_B,
+        n_steps=thermo_n_integration_steps
+    )
     mc.run()
+
     data_container = mc.data_container
 
     (_, free_energy_integration_forward) = \
@@ -186,7 +197,7 @@ for Ga_number in range(0, max_Ga_In_number + 1):
         calculator = calc,
         temperature = temperature_min,
         forward = False,
-        ensemble_data_write_interval = 1,
+        ensemble_data_write_interval = 10,
         boltzmann_constant = k_B,
         n_steps = thermo_n_integration_steps)
     
@@ -202,14 +213,14 @@ for Ga_number in range(0, max_Ga_In_number + 1):
     free_energy_integration_average = 0.5 * (free_energy_integration_forward +
                                              free_energy_integration_backward)
 
-    for target_t in target_t_list:
+    for T in Ts:
         i = np.argmin(
-            np.abs(temperatures_integration - target_t)
+            np.abs(temperatures_integration - T)
         )
 
         data_from_thermal_per_atom.append(free_energy_integration_average[i] / len(supercell))
 
-        string_to_write = str(Ga_number / max_Ga_In_number)  + " " + str(target_t) + " " \
+        string_to_write = str(Ga_number / max_Ga_In_number)  + " " + str(T) + " " \
                         + str(free_energy_integration_average[i] / len(supercell)) + '\n'
 
         with open("generated_data_files/thermo_E_over_GGI.txt", "a") as f:
