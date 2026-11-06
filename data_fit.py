@@ -39,9 +39,9 @@ AAC_directories = [
 ATAT_format_lattice_path = "initial_data_files/lat.in"
 output_file_name = "generated_data_files/cluster_expansion.ce"
 
-cutoffs = [6, 4.5] #NOT SURE HOW TO HANDLE THIS YET
+cutoffs = [6, 4.5] 
 
-method_of_fitting = "ridge" #NOT SURE HOW TO HANDLE THIS YET
+method_of_fitting = "ridge"
 
 #============================================================
 #USER MODIFICATION SECTION END
