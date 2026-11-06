@@ -33,8 +33,8 @@ calc = ClusterExpansionCalculator(supercell, cluster_expansion)
 filename = "/home/david/Desktop/project/generated_data_files/SGC_data.txt"
 
 
-start_configureation = supercell.copy()
-sublattices = cluster_space.get_sublattices(start_configureation)
+start_configuration = supercell.copy()
+sublattices = cluster_space.get_sublattices(start_configuration)
 Ga_condition   = False
 Cu_condition   = False 
 Se_condition   = False
@@ -58,51 +58,109 @@ for sublattice in sublattices:
             break
         Se_condition = True
 
-for temperature in range(100, 800, 50):
-    # Evolve configuration through the entire composition range
-    GGI = []
-    energy = []
-    chem_pot = []
-    GGI_1_obtained = False
-    structure = start_configureation
+for i in ga_sites:
+    start_configuration[i].symbol = "In"
 
-    for dmu in np.arange(-1.04, 1.04, 0.002):
+for i in cu_sites:
+    start_configuration[i].symbol = "Cu"
 
-        mc = SemiGrandCanonicalEnsemble(
-            structure = structure,
-            calculator = calc,
-            temperature = temperature,
-            ensemble_data_write_interval = 10,
-            chemical_potentials = {
+for i in se_sites:
+    start_configuration[i].symbol = "Se"
+
+# for temperature in range(150, 500, 25):
+for temperature in range(300, 400, 25):
+    results = []
+
+    # dmus = np.linspace(-1.04, 1.04, 1041)
+    dmus = np.linspace(-0.6, -0.35, 200)
+
+    for direction in [1, -1]:
+
+        GGI = []
+        energy = []
+        chem_pot = []
+
+        structure = start_configuration.copy()
+
+        if direction == 1:
+            for i in ga_sites:
+                structure[i].symbol = "In"
+            dmu_values = dmus
+
+        else:
+            for i in ga_sites:
+                structure[i].symbol = "Ga"
+            dmu_values = dmus[::-1]
+
+        for dmu in dmu_values:
+
+            mc = SemiGrandCanonicalEnsemble(
+                structure=structure,
+                calculator=ClusterExpansionCalculator(
+                    structure, cluster_expansion
+                ),
+                temperature=temperature,
+                ensemble_data_write_interval=10,
+                chemical_potentials={
                     "In": 0.0,
-                    "Ga": dmu, 
+                    "Ga": float(dmu),
                 },
                 sublattice_probabilities=[0.0, 1.0, 0.0]
             )
 
-        mc.run(10000)
-        structure = mc.structure
+            mc.run(25000)
+            structure = mc.structure.copy()
 
-        data_cutoff = int(0.7 * len(mc.data_container.get("Ga_count")))
-        ga_number =   np.mean(mc.data_container.get("Ga_count") [data_cutoff:])
-        in_number =   np.mean(mc.data_container.get("In_count") [data_cutoff:])
+            data_cutoff = int(
+                0.7 * len(mc.data_container.get("Ga_count"))
+            )
 
-        if(ga_number / (ga_number + in_number) >= 1 and \
-           GGI_1_obtained == False):
-           GGI_1_obtained = True
-        elif(ga_number / (ga_number + in_number) >= 1 and \
-             GGI_1_obtained == True):
-            continue
+            ga_number = np.mean(
+                mc.data_container.get("Ga_count")[data_cutoff:]
+            )
 
-        GGI.   append(ga_number / (ga_number + in_number))
-        energy.append(np.mean(mc.data_container.get("potential")[data_cutoff:]))
-        chem_pot.append(dmu)
-        
+            in_number = np.mean(
+                mc.data_container.get("In_count")[data_cutoff:]
+            )
+            print("IN process")
+            GGI.append(ga_number / (ga_number + in_number))
+
+            energy.append(
+                np.mean(
+                    mc.data_container.get("potential")[data_cutoff:]
+                )
+            )
+
+            chem_pot.append(dmu)
+
+        # Reverse backward results to match forward chemical potentials
+        if direction == -1:
+            GGI.reverse()
+            energy.reverse()
+            chem_pot.reverse()
+
+        results.append((np.array(GGI), np.array(energy)))
+
+    # Average forward and backward simulations
+    GGI = (results[0][0] + results[1][0]) / 2
+    energy = (results[0][1] + results[1][1]) / 2
+    chem_pot = dmus
+
+    # Same energy subtraction as your original code
     k, b = fit_linear(0, max(energy), 1, min(energy))
+
     for i in range(len(GGI)):
         energy[i] -= (k * GGI[i] + b)
 
+    # Exactly the same output format:
+    # Temperature GGI Energy Chemical_potential
     with open(filename, "a") as f:
         for i in range(len(GGI)):
-            string_to_write = str(temperature) + " " + str(GGI[i]) + " " + str(energy[i]) + " " + str(chem_pot[i]) + " \n"
+            string_to_write = (
+                str(temperature) + " " +
+                str(GGI[i]) + " " +
+                str(energy[i]) + " " +
+                str(chem_pot[i]) + " \n"
+            )
             f.write(string_to_write)
+    print(f"T = {temperature} K: data saved successfully")
