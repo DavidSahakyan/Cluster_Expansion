@@ -1,6 +1,5 @@
 from helper_functions import *
 from numpy import mean
-import matplotlib.pyplot as plt
 
 from ase import Atoms
 from icet import ClusterSpace
