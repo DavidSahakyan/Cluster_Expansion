@@ -165,11 +165,6 @@ def surface_fit_function(GGI_AAC_data, A, B, C, D):
     y = GGI_AAC_data[1]
     return (A * x * y) + (B * x) + (C * y) + D
 
-def interpolate(filename, target_t, target_k_B, target_T0):
-    
-    x2, x1, x0 = np.polyfit(*read_target_data(filename, target_t, target_k_B, target_T0), 2)
-    return [x0, x1, x2]
-
 def get_ref_energy(mc, cluster_space, k_B, T):
     Enthalpy_of_random = np.average(mc.data_container.get("potential")[1000:])
     sublattices = cluster_space.get_sublattices(mc.structure)
@@ -427,22 +422,25 @@ def get_canonical_free_energy_fits_over_T(datafile, Ts, plot_or_no = True, criti
             if Ts[i] > critical_temperature:
                 x = np.linspace(0, 1, 50)
                 y = [free_energy_fit(i) for i in x]
-                plt.plot(x, y, linestyle = "--", label = f"T = {Ts[i]} K, Fit")
-                plt.scatter(GGIs, free_energies, label = f"T = {Ts[i]} K, Data")
+                plt.plot(x, y, linestyle = "--")
+                plt.scatter(GGIs, free_energies, label = f"T = {Ts[i]} K")
             
             else:
-                lab = "T = " + str(Ts[i]) + " K, Actual data points"
+                lab = "T = " + str(Ts[i]) + " K"
                 plt.scatter(GGIs, free_energies, label = lab)
                 x0 = np.linspace(0, range_around_0, 100)
                 x1 = np.linspace(range_around_1, 1, 100)
-                plt.plot(x0, free_energy_fit_around_0(x0), "--", label = f"T = {Ts[i]} K, Fit around 0")
-                plt.plot(x1, free_energy_fit_around_1(x1), "--", label = f"T = {Ts[i]} K, Fit around 0")
+                plt.plot(x0, free_energy_fit_around_0(x0))
+                plt.plot(x1, free_energy_fit_around_1(x1))
 
     if plot_or_no:
-        plt.legend()
         plt.grid()
-        plt.title("Temperature integration")
-        plt.show()
+        plt.xlabel("GGI", fontsize = 25)
+        plt.ylabel(r"$G_{mix}(meV/atom)$", fontsize = 25)
+        plt.title("TEI", fontsize = 25)
+        plt.legend(fontsize = 20)
+        plt.tick_params(axis = "both", which = "major", labelsize = 20)
+        # plt.show()
 
     return T_free_energies
 
@@ -493,15 +491,15 @@ def get_VCSGC_free_energy_fits_over_T(datafile, Ts, plot_or_no = True, critical_
             initial=0
         )
 
-        if plot_or_no:
-            plt.figure(figsize=(10, 6))
+        # if plot_or_no:
+        #     plt.figure(figsize=(10, 6))
 
-            plt.scatter(x_unique, Es, s=15, label = f"T = {Ts[i]} K")
-            plt.xlabel("GGI")
-            plt.ylabel("Free energy (eV/atom)")
-            plt.grid()
-            plt.legend()
-            plt.show()
+        #     plt.scatter(x_unique, Es, s=15, label = f"T = {Ts[i]} K")
+        #     plt.xlabel("GGI")
+        #     plt.ylabel("Free energy (eV/atom)")
+        #     plt.grid()
+        #     plt.legend()
+        #     plt.show()
     
         ind = np.argsort(x_unique)
         x_unique = x_unique[ind]
@@ -544,21 +542,25 @@ def get_VCSGC_free_energy_fits_over_T(datafile, Ts, plot_or_no = True, critical_
             if Ts[i] > critical_temperature:
                 x = np.linspace(0, 1, 50)
                 y = [free_energy_fit(i) for i in x]
-                plt.plot(x, y, linestyle = "--",     label = f"T = {Ts[i]} K, Fit")
-                plt.scatter(x_unique, free_energies, label = f"T = {Ts[i]} K, Data")
+                plt.plot(x, y, linestyle = "--")
+                plt.scatter(x_unique, free_energies, label = f"T = {Ts[i]} K")
                 
             else:
-                lab = "T = " + str(Ts[i]) + " K, Actual data points"
+                lab = "T = " + str(Ts[i]) + " K"
                 plt.scatter(x_unique, free_energies, label = lab)
                 x0 = np.linspace(0, range_around_0, 100)
                 x1 = np.linspace(range_around_1, 1, 100)
-                plt.plot(x0, free_energy_fit_around_0(x0), "--", label = f"T = {Ts[i]} K, Fit around 0")
-                plt.plot(x1, free_energy_fit_around_1(x1), "--", label = f"T = {Ts[i]} K, Fit around 1")
+                plt.plot(x0, free_energy_fit_around_0(x0), "--")
+                plt.plot(x1, free_energy_fit_around_1(x1), "--")
 
-            plt.legend()
-            plt.grid()
-            plt.title("VCSGC")
-            plt.show()
+    plt.ylabel(r"$G_{mix}(meV/atom)$", fontsize = 25)
+    plt.xlabel("GGI", fontsize = 25)
+    plt.title("VCSGC ensemble", fontsize = 25)
+    plt.grid()
+    plt.tick_params(axis = "both", which = "major", labelsize = 20)
+    plt.legend(fontsize = 10)
+    # plt.title(r"VCSGC", fontsize = 25)
+    plt.show()
 
     return T_free_energies
 
@@ -651,11 +653,142 @@ def plot_phase_diagrams(T_GGIs_list, labels = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]):
             for GGI in T_GGIs[T]:
                 phase_diagram_GGIs.append(GGI)
 
-        plt.scatter(phase_diagram_GGIs, phase_diagram_Ts, label = lab)
 
-    plt.title("Phase Diagrams")
-    plt.ylabel("T")
+        phase_diagram_GGIs = np.array(phase_diagram_GGIs)
+        phase_diagram_Ts   = np.array(phase_diagram_Ts)
+        indecies = phase_diagram_GGIs.argsort()
+        phase_diagram_GGIs = phase_diagram_GGIs[indecies]
+        phase_diagram_Ts   = phase_diagram_Ts[indecies]
+        
+        if lab == "SGC":
+            plt.scatter(phase_diagram_GGIs, phase_diagram_Ts, label = lab, color = 'red')
+        else:
+            plt.plot   (phase_diagram_GGIs, phase_diagram_Ts, label = lab)
+
+    plt.tick_params(axis = "both", which = "major", labelsize = 20)
+    plt.title("Phase Diagrams", fontsize = 25)
+    plt.ylabel("T(K)", fontsize = 25)
+    plt.xlabel("GGI", fontsize = 25)
+    plt.legend(fontsize = 25)    
     plt.grid()
-    plt.xlabel("GGI")
-    plt.legend()    
     plt.show()
+
+def phase_diagram_SGC(file_to_read, Ts, plot_or_no = True, critical_T_1 = 250, critical_T_2 = 325):
+    T_GGIs = {}
+    phase_diagram_T = []
+    phase_diagram_GGI_right = []
+    phase_diagram_GGI_left = []
+    for T in Ts:
+
+        GGI = []
+        dmu = []
+        E = []
+
+        with open(file_to_read) as f:
+            for line in f:
+                data = line.split()
+
+                if float(data[0]) == T:
+                    GGI.append(float(data[1]))
+                    E.append(float(data[2]))
+                    dmu.append(float(data[3]))
+
+        if not len(GGI):
+            print(f"WARNING! TARGET TEMPERATURE {T} IS NOT FOUND")
+            continue
+
+        GGI = np.array(GGI)
+        dmu = np.array(dmu)
+        E = np.array(E)
+
+        # Sort by chemical potential
+        indices = np.argsort(dmu)
+
+        dmu = dmu[indices]
+        GGI = GGI[indices]
+        E = E[indices]
+
+        edges_mask = []
+
+        if T <= critical_T_1:
+            for i in range(len(GGI)):
+                if GGI[i] < 0.05 or GGI[i] > 0.95:
+                    edges_mask.append(i)
+
+            dmu = dmu[edges_mask]
+            GGI = GGI[edges_mask]
+            E = E[edges_mask]
+        elif T < critical_T_2:
+            for i in range(len(GGI)):
+                if GGI[i] < 0.3 or GGI[i] > 0.7:
+                    edges_mask.append(i)
+
+            dmu = dmu[edges_mask]
+            GGI = GGI[edges_mask]
+            E = E[edges_mask]
+
+        delta_GGI = np.abs(np.diff(GGI))
+
+        jump_index = np.argmax(delta_GGI)
+
+        # Compositions before and after the jump
+        GGI_left = min(GGI[jump_index], GGI[jump_index + 1])
+        GGI_right = max(GGI[jump_index], GGI[jump_index + 1])
+
+        phase_diagram_T.append(T)
+        phase_diagram_GGI_left.append(GGI_left)
+        phase_diagram_GGI_right.append(GGI_right)
+
+        print(
+            f"T = {T} K: "
+            f"GGI_left = {GGI_left:.4f}, "
+            f"GGI_right = {GGI_right:.4f}, "
+            f"Jump = {delta_GGI[jump_index]:.4f}"
+        )
+
+        if plot_or_no:
+            plt.scatter(GGI, dmu, label=f"T = {T} K")
+
+    if plot_or_no:
+        plt.ylabel("E derivative (eV)", fontsize = 25)
+        plt.xlabel("GGI", fontsize = 25)
+        plt.title("SGC composition vs chemical potential", fontsize = 25)
+        plt.legend(fontsize = 25)
+        plt.show()
+
+    phase_diagram_T         = np.array(phase_diagram_T)
+    phase_diagram_GGI_left  = np.array(phase_diagram_GGI_left)
+    phase_diagram_GGI_right = np.array(phase_diagram_GGI_right)
+
+    indices = np.argsort(phase_diagram_T)
+
+
+    phase_diagram_T = phase_diagram_T[indices]
+    phase_diagram_GGI_left  = phase_diagram_GGI_left[indices]
+    phase_diagram_GGI_right = phase_diagram_GGI_right[indices]
+
+    for i in range(len(phase_diagram_T)):
+        T_GGIs[phase_diagram_T[i]] = [phase_diagram_GGI_left[i], phase_diagram_GGI_right[i]] 
+
+    # if plot_or_no:
+    #     plt.plot(
+    #         phase_diagram_GGI_left,
+    #         phase_diagram_T,
+    #         'o-',
+    #         label="Left boundary"
+    #     )
+    # if plot_or_no:
+    #     plt.plot(
+    #         phase_diagram_GGI_right,
+    #         phase_diagram_T,
+    #         'o-',
+    #         label="Right boundary"
+    #     )
+    # if plot_or_no:
+    #     plt.xlabel("GGI")
+    #     plt.ylabel("Temperature (K)")
+    #     plt.title("Phase diagram from SGC ensemble")
+    #     plt.legend()
+    #     plt.grid()
+    #     plt.show()
+    return T_GGIs

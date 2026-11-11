@@ -79,10 +79,11 @@ print(f"Predicted coefficients: A: {A}, B: {B}, C: {C}, D: {D}")
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection = "3d")
+ax.tick_params(axis='both', which='major', labelsize = 15)
 
-ax.set_xlabel("GGI")
-ax.set_ylabel("AAC")
-ax.set_zlabel("Energy")
+ax.set_xlabel("GGI", fontsize = 25)
+ax.set_ylabel("AAC", fontsize = 25)
+ax.set_zlabel(r"$G_{mix}(meV/formula)$", fontsize = 25)
 
 X = np.array(GGI_list).reshape(10, 10)
 Y = np.array(AAC_list).reshape(10, 10)
@@ -93,9 +94,13 @@ plt.show()
 plt.contourf(X, Y, Z, levels = 50, cmap = "RdBu")
 
 cbar = plt.colorbar()
-cbar.set_label("Energy delta")
+for t in cbar.ax.get_yticklabels():
+     t.set_fontsize(20)
 
-plt.xlabel("GGI")
-plt.ylabel("AAC")
+cbar.set_label(r"$G_{mix}(meV/formula)$", fontsize = 25)
+
+plt.tick_params(axis='both', which='major', labelsize=20)
+plt.xlabel("GGI", fontsize = 25)
+plt.ylabel("AAC", fontsize = 25)
 
 plt.show()

@@ -131,7 +131,7 @@ for Ga_number in range(0, max_Ga_In_number + 1, 5):
 
     if Ga_number == 0:
         for T in Ts:
-            with open("generated_data_files/thermo_E_over_GGI.txt", "a") as f:
+            with open("generated_data_files/thermodynamic_integration_data.txt", "a") as f:
                 text = "0.0000000000000000 " + str(T) + " " + str(cluster_expansion.predict(start_configuration)) + '\n'
                 f.write(text)
                 potential_from_mc.append(cluster_expansion.predict(start_configuration))
@@ -139,7 +139,7 @@ for Ga_number in range(0, max_Ga_In_number + 1, 5):
 
     if Ga_number == max_Ga_In_number:
         for T in Ts:
-            with open("generated_data_files/thermo_E_over_GGI.txt", "a") as f:
+            with open("generated_data_files/thermodynamic_integration_data.txt", "a") as f:
                 text = "1.0000000000000000 " + str(T) + " " + str(cluster_expansion.predict(start_configuration)) + '\n'
                 f.write(text)
                 potential_from_mc.append(cluster_expansion.predict(start_configuration))
@@ -222,7 +222,7 @@ for Ga_number in range(0, max_Ga_In_number + 1, 5):
         string_to_write = str(Ga_number / max_Ga_In_number)  + " " + str(T) + " " \
                         + str(free_energy_integration_average[i] / len(supercell)) + '\n'
 
-        with open("generated_data_files/thermo_E_over_GGI.txt", "a") as f:
+        with open("generated_data_files/thermodynamic_integration_data.txt", "a") as f:
             f.write(string_to_write)
 
         print(f"GGI: {Ga_number / max_Ga_In_number}, delta_e: {data_from_thermal_per_atom[-1]}\n")

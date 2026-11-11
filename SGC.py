@@ -133,7 +133,6 @@ for temperature in range(300, 400, 25):
 
             chem_pot.append(dmu)
 
-        # Reverse backward results to match forward chemical potentials
         if direction == -1:
             GGI.reverse()
             energy.reverse()
@@ -141,7 +140,6 @@ for temperature in range(300, 400, 25):
 
         results.append((np.array(GGI), np.array(energy)))
 
-    # Average forward and backward simulations
     GGI = (results[0][0] + results[1][0]) / 2
     energy = (results[0][1] + results[1][1]) / 2
     chem_pot = dmus
@@ -152,8 +150,6 @@ for temperature in range(300, 400, 25):
     for i in range(len(GGI)):
         energy[i] -= (k * GGI[i] + b)
 
-    # Exactly the same output format:
-    # Temperature GGI Energy Chemical_potential
     with open(filename, "a") as f:
         for i in range(len(GGI)):
             string_to_write = (
